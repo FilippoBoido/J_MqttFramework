@@ -2,7 +2,7 @@ package packageSystem;
 
 public abstract class StateMachine {
 
-	enum E_StateMachine {
+	public enum E_StateMachine {
 	    eInit,
 	    eReady,
 	    ePrepare,
@@ -14,6 +14,7 @@ public abstract class StateMachine {
 	
 	
 	private boolean bFirstCall = true;
+	protected int errorType;
 	public E_StateMachine eStateMachine;
 	
 	public StateMachine() {
@@ -21,7 +22,7 @@ public abstract class StateMachine {
 	}
 	
 	
-	public void checkStateMachine()
+	public void CheckStateMachine()
 	{
 		switch(eStateMachine)
 		{
@@ -114,10 +115,11 @@ public abstract class StateMachine {
 		return false;
 	}
 	
-	protected boolean Fault()
+	protected boolean Fault(int errorType)
 	{
 		if(eStateMachine == E_StateMachine.eBusy)
 		{
+			this.errorType = errorType;
 			ChangeState(E_StateMachine.eError);
 			return true;
 		}

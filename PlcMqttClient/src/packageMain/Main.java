@@ -4,12 +4,22 @@ import packageAds.PlcConnector;
 public class Main {
 
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		
 		PlcConnector plcConnector = new PlcConnector();
 		
+		boolean bFirstCall = true; 
 		while(true)
 		{
-			plcConnector.checkStateMachine();
+			/*
+			if(	plcConnector.eStateMachine == plcConnector.eStateMachine.eReady
+				&& bFirstCall	)
+			{
+				bFirstCall = false;
+				
+			}
+			*/
+			plcConnector.Execute();	
+			plcConnector.CheckStateMachine();
 		}
 		
 	}
