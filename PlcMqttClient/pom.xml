@@ -1,0 +1,31 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<repositories>
+	    <repository>
+	        <id>Eclipse Paho Repo</id>
+	        <url>https://repo.eclipse.org/content/repositories/paho-releases/</url>
+	    </repository>
+	</repositories>
+	<dependencies>
+	    <dependency>
+	        <groupId>org.eclipse.paho</groupId>
+	        <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+	        <version>1.2.0</version>
+	    </dependency>
+ 	</dependencies>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>PlcMqttClient</groupId>
+  <artifactId>PlcMqttClient</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.0</version>
+        <configuration>
+          <release>12</release>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
