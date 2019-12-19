@@ -7,17 +7,9 @@ public class Main {
 		
 		PlcConnector plcConnector = new PlcConnector();
 		
-		boolean bFirstCall = true; 
 		while(true)
 		{
-			/*
-			if(	plcConnector.eStateMachine == plcConnector.eStateMachine.eReady
-				&& bFirstCall	)
-			{
-				bFirstCall = false;
-				
-			}
-			*/
+
 			plcConnector.Execute();	
 			plcConnector.CheckStateMachine();
 		}

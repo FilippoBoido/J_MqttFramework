@@ -18,6 +18,7 @@ public class PlcFetcher extends StateMachine {
 	private static final String mqttLifePackage_stateMachine = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.uiStateMachine";
 	private static final String mqttLifePackage_dtDate = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.dtDate";
 	
+	//The paths of the packages that need to be fetched, here.
 	
 	JNIByteBuffer 
 		handle_lifePackage,
@@ -27,8 +28,8 @@ public class PlcFetcher extends StateMachine {
 		handle_dtDate,	
 		symbol_dtDate; 
 	
+	//The buffers for the packages that need to be fetched, here.
 	JNIByteBuffer buffer_stateMachine = new JNIByteBuffer(2);
-	JNIByteBuffer buffer_dtDate = new JNIByteBuffer(4);
 	JNIByteBuffer buffer_lifePackage = new JNIByteBuffer(6);
 	
 	AmsAddr addr;
@@ -68,32 +69,35 @@ public class PlcFetcher extends StateMachine {
 	@Override
 	protected void Busy() {
 
-	   err = AdsCallDllFunction
-				.adsSyncReadWriteReq
-				(
-					addr,
-					AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
-					0x0,
-					handle_lifePackage.getUsedBytesCount(),
-					handle_lifePackage,
-					symbol_lifePackage.getUsedBytesCount(),
-					symbol_lifePackage
-				);
-		
-	   if(err!=0) 
-	   { 
-		   System.out.println("Error: Get handle: 0x"+ Long.toHexString(err)); 
-		   Fault(0);
-		   return;
+		if(hdlBuffToInt == 0)
+		{
+			err = AdsCallDllFunction
+					.adsSyncReadWriteReq
+					(
+						addr,
+						AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
+						0x0,
+						handle_lifePackage.getUsedBytesCount(),
+						handle_lifePackage,
+						symbol_lifePackage.getUsedBytesCount(),
+						symbol_lifePackage
+					);
+			
+		   if(err!=0) 
+		   { 
+			   System.out.println("Error: Get handle: 0x"+ Long.toHexString(err)); 
+			   Fault(0);
+			   return;
+			   
+		   } 
+		   else 
+		   {
+			   System.out.println("Success: Got handle_lifePackage handle!");
+		   }
 		   
-	   } 
-	   else 
-	   {
-		   System.out.println("Success: Got handle_lifePackage handle!");
-	   }
-	   
-	   
-	   hdlBuffToInt = Convert.ByteArrToInt(handle_lifePackage.getByteArray());
+		   
+		   hdlBuffToInt = Convert.ByteArrToInt(handle_lifePackage.getByteArray());
+		}
 	   
 	   err = AdsCallDllFunction
 			   .adsSyncReadReq
@@ -123,11 +127,9 @@ public class PlcFetcher extends StateMachine {
 
 			Date date = new Date(timeConversion);
 			System.out.println("plcTimeAndDate: " + date.toString());
-			Wait();
+			
 	   }
-	   
-	   
-	   
+	     
 	}
 
 	@Override
@@ -149,6 +151,10 @@ public class PlcFetcher extends StateMachine {
 	}
 
 }
+
+
+
+
 class MqttLifePackage
 {
 	private byte[] plcStateMachine = new byte[2];
