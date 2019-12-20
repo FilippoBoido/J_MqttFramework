@@ -11,6 +11,10 @@ public class PlcConnector extends StateMachine {
 	
 	PlcFetcher plcFetcher;
 	
+	public PlcFetcher getPlcFetcher() {
+		return plcFetcher;
+	}
+
 	long err;
 	AmsAddr addr;
 	JNIByteBuffer handleBuff,symbolBuff,dataBuff;

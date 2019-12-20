@@ -35,6 +35,9 @@ public class PlcFetcher extends StateMachine {
 	AmsAddr addr;
 	long err;
 	int hdlBuffToInt;
+	private boolean fetching = false;
+	
+	
 	
 	public PlcFetcher(AmsAddr addr) {
 		super();
@@ -118,7 +121,7 @@ public class PlcFetcher extends StateMachine {
 		}
 	   else
 	   {
-		   
+		   	fetching = true;
 			ByteBuffer bb = ByteBuffer.wrap(buffer_lifePackage.getByteArray());
 			bb.order(ByteOrder.LITTLE_ENDIAN);
 			System.out.println("Reading mqttLifePackage succesfull!");
@@ -146,8 +149,12 @@ public class PlcFetcher extends StateMachine {
 
 	@Override
 	protected void Error() {
-		// TODO Auto-generated method stub
+		fetching = false;
 		
+	}
+
+	public boolean isFetching() {
+		return fetching;
 	}
 
 }
