@@ -21,6 +21,42 @@ public abstract class StateMachine {
 		Boot();	
 	}
 	
+	public static String getStateAsString(int state)
+	{
+		switch(state)
+		{
+		case 0:
+			return "No state";
+			
+		case 1:
+			return "Init";
+			
+		case 2:
+			return "Ready";
+			
+		case 3:
+			return "Prepare";
+			
+		case 4:
+			return "Busy";
+			
+		case 5: 
+			return "Waiting";
+			
+		case 6: 
+			return "Idle";
+			
+		case 7: 
+			return "Error";
+			
+		
+			
+		}
+		
+			
+		return "No state";
+		
+	}
 	
 	public void CheckStateMachine()
 	{

@@ -1,6 +1,7 @@
 package packageAds;
 
 import de.beckhoff.jni.tcads.AmsAddr;
+import packageMqtt.AdsMqttClient;
 import packageSystem.StateMachine;
 import de.beckhoff.jni.Convert;
 import de.beckhoff.jni.JNIByteBuffer;
@@ -20,6 +21,7 @@ public class PlcFetcher extends StateMachine {
 	
 	//The paths of the packages that need to be fetched, here.
 	
+	
 	JNIByteBuffer 
 		handle_lifePackage,
 		symbol_lifePackage,
@@ -29,19 +31,32 @@ public class PlcFetcher extends StateMachine {
 		symbol_dtDate; 
 	
 	//The buffers for the packages that need to be fetched, here.
-	JNIByteBuffer buffer_stateMachine = new JNIByteBuffer(2);
-	JNIByteBuffer buffer_lifePackage = new JNIByteBuffer(6);
 	
+	private JNIByteBuffer buffer_lifePackage = new JNIByteBuffer(6);
+	
+	private AdsMqttClient adsMqttClient;
+	
+
+	public JNIByteBuffer getLifePackage() {
+		return buffer_lifePackage;
+	}
+
 	AmsAddr addr;
 	long err;
 	int hdlBuffToInt;
-	private boolean fetching = false;
 	
 	
+	private FetcherThread lifePackageFetcher;
 	
-	public PlcFetcher(AmsAddr addr) {
+	public FetcherThread getLifePackageFetcher() {
+		return lifePackageFetcher;
+	}
+
+
+	public PlcFetcher(AmsAddr addr,AdsMqttClient adsMqttClient) {
 		super();
 		this.addr = addr;
+		this.adsMqttClient = adsMqttClient;
 	}
 	
 	@Override
@@ -100,38 +115,30 @@ public class PlcFetcher extends StateMachine {
 		   
 		   
 		   hdlBuffToInt = Convert.ByteArrToInt(handle_lifePackage.getByteArray());
+		   
+		   
+		   lifePackageFetcher = 
+				   new FetcherThread
+				   (	
+					   adsMqttClient,
+					   AdsMqttClient.E_PublishMode.LIFE_PACKAGE,
+					   1000,//amount of sleep
+					   addr,
+					   hdlBuffToInt,
+					   0x6,//size of package
+					   buffer_lifePackage 
+				   );
+		   
+		   lifePackageFetcher.start();
 		}
 	   
-	   err = AdsCallDllFunction
-			   .adsSyncReadReq
-			   (
-				   addr,
-				   AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-				   hdlBuffToInt,
-				   0x6,
-				   buffer_lifePackage
-			   );
-	   
-	   if(err!=0)
+		if(lifePackageFetcher.isError())
 		{
-			System.out.println("Error: Read by handle: 0x" + Long.toHexString(err));
-			
+			 System.out.println("Failure: Error while retrieving LifePackage.");
 			Fault(0);
 			return;
 		}
-	   else
-	   {
-		   	fetching = true;
-			ByteBuffer bb = ByteBuffer.wrap(buffer_lifePackage.getByteArray());
-			bb.order(ByteOrder.LITTLE_ENDIAN);
-			System.out.println("Reading mqttLifePackage succesfull!");
-			System.out.println("plcStateMachine: " + bb.getShort());
-			long timeConversion = (long) bb.getInt() * 1000;
-
-			Date date = new Date(timeConversion);
-			System.out.println("plcTimeAndDate: " + date.toString());
-			
-	   }
+		
 	     
 	}
 
@@ -149,39 +156,12 @@ public class PlcFetcher extends StateMachine {
 
 	@Override
 	protected void Error() {
-		fetching = false;
+		
+		lifePackageFetcher.End();
 		
 	}
 
-	public boolean isFetching() {
-		return fetching;
-	}
 
 }
 
 
-
-
-class MqttLifePackage
-{
-	private byte[] plcStateMachine = new byte[2];
-	private byte[] plcTimeAndDate = new byte[4];
-	private byte[] buffer = new byte[6];
-	
-	private int intPlcStateMachine;
-	private long longPlcTimeAndDate;
-	
-	public MqttLifePackage()
-	{
-		;
-	}
-
-	public int getPlcStateMachine() {
-		return intPlcStateMachine;
-	}
-	public long getPlcTimeAndDate() {
-		return longPlcTimeAndDate;
-	}
-	
-
-}

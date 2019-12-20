@@ -4,7 +4,7 @@ import de.beckhoff.jni.Convert;
 import de.beckhoff.jni.JNIByteBuffer;
 import de.beckhoff.jni.tcads.AdsCallDllFunction;
 import de.beckhoff.jni.tcads.AmsAddr;
-
+import packageMqtt.AdsMqttClient;
 import packageSystem.StateMachine;
 
 public class PlcConnector extends StateMachine {
@@ -20,14 +20,14 @@ public class PlcConnector extends StateMachine {
 	JNIByteBuffer handleBuff,symbolBuff,dataBuff;
 	
 	int busyStep;
-	
+	AdsMqttClient adsMqttClient;
 	
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
 	
-	public PlcConnector()
+	public PlcConnector(AdsMqttClient adsMqttClient)
 	{
 		super();
-		
+		this.adsMqttClient = adsMqttClient;
 		
 	}
 
@@ -35,7 +35,7 @@ public class PlcConnector extends StateMachine {
 	protected void Init() {
 		
 		addr = new AmsAddr();
-		plcFetcher = new PlcFetcher(addr);
+		plcFetcher = new PlcFetcher(addr,adsMqttClient);
 		handleBuff = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		symbolBuff = new JNIByteBuffer(plcConnected.getBytes());
 		dataBuff = new JNIByteBuffer(1);

@@ -1,22 +1,37 @@
 package packageMqtt;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
+
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
+import de.beckhoff.jni.JNIByteBuffer;
 import packageSystem.StateMachine;
 
 public class AdsMqttClient extends StateMachine{
 	
-	String topic;          
-	String broker;     
-	String clientId;   
-	int qos  = 2;    
-	MemoryPersistence persistence;
-	MqttClient sampleClient;
-	boolean connected;
+	public enum E_PublishMode
+	{
+		NO_PUBLISH_MODE,
+		LIFE_PACKAGE
+	}
 	
+	private String topic;          
+	private String broker;     
+	private String clientId;   
+	private int qos  = 2;    
+	private MemoryPersistence persistence;
+	private MqttClient sampleClient;
+	private boolean connected;
+	//private JNIByteBuffer buffer;
+
+
 	public boolean isConnected() {
 		return connected;
 	}
@@ -31,7 +46,7 @@ public class AdsMqttClient extends StateMachine{
 
 	public void Publish(String message)
 	{
-		if(sampleClient != null)
+		if(sampleClient != null && connected)
 		{
 			try 
 			{
@@ -54,10 +69,38 @@ public class AdsMqttClient extends StateMachine{
 		}    
 	}
 	
+	public void Publish(JNIByteBuffer buffer,E_PublishMode ePublishMode)
+	{
+		switch(ePublishMode)
+		{
+		case NO_PUBLISH_MODE:
+			
+			System.out.println("AdsMqttClient: NO_PUBLISH_MODE.");
+			
+			break;
+			
+		case LIFE_PACKAGE:
+			
+			ByteBuffer bb = ByteBuffer.wrap(buffer.getByteArray());
+			bb.order(ByteOrder.LITTLE_ENDIAN);
+			short state = bb.getShort();	
+			long timeConversion = (long) bb.getInt() * 1000;
+			Date date = new Date(timeConversion);
+			SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
+			sdf.setTimeZone(TimeZone.getTimeZone("Germany/Berlin"));
+			
+			Publish(StateMachine.getStateAsString(state));
+			Publish(sdf.format(date));
+			
+			
+			break;
+		}
+	}
+	
 	@Override
 	protected void Init() {
 		// TODO Auto-generated method stub
-		
+		Start();
 	}
 
 	@Override
@@ -84,6 +127,7 @@ public class AdsMqttClient extends StateMachine{
 	            System.out.println("Connecting to broker: "+broker);
 	            sampleClient.connect(connOpts);
 	            System.out.println("Connected");
+	            connected = true;
 	            
 			}       
            
