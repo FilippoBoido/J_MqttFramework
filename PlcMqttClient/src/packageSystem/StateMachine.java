@@ -153,7 +153,9 @@ public abstract class StateMachine {
 	
 	protected boolean Fault(int errorType)
 	{
-		if(eStateMachine == E_StateMachine.eBusy)
+		if(eStateMachine == E_StateMachine.eBusy
+				|| eStateMachine == E_StateMachine.eInit
+				|| eStateMachine == E_StateMachine.eReady)
 		{
 			this.errorType = errorType;
 			ChangeState(E_StateMachine.eError);

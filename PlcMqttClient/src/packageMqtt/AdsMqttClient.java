@@ -43,7 +43,24 @@ public class AdsMqttClient extends StateMachine{
 		this.clientId = clientId;
 		persistence = new MemoryPersistence();  
 	}
-
+	public boolean Subscribe(String topic)
+	{
+		if(sampleClient != null && connected)
+		{
+			
+			try {
+				sampleClient.subscribe(topic);
+				System.out.println("Subscribed to topic: " + topic);
+				
+			} catch (MqttException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return false;
+			}
+			
+		}
+		return true;
+	}
 	public void Publish(String message)
 	{
 		if(sampleClient != null && connected)
@@ -54,6 +71,28 @@ public class AdsMqttClient extends StateMachine{
 	            MqttMessage mqttMessage = new MqttMessage(message.getBytes());
 	            mqttMessage.setQos(qos);
 				sampleClient.publish(topic, mqttMessage);
+		        System.out.println("Message published");
+			}
+			catch(MqttException me) 
+			{
+	            System.out.println("reason "+me.getReasonCode());
+	            System.out.println("msg "+me.getMessage());
+	            System.out.println("loc "+me.getLocalizedMessage());
+	            System.out.println("cause "+me.getCause());
+	            System.out.println("excep "+me);
+	            me.printStackTrace();
+	        }
+			
+		}    
+	}
+	
+	public void Publish(String topic, byte[] payload)
+	{
+		if(sampleClient != null && connected)
+		{
+			try 
+			{
+				sampleClient.publish(topic,payload,2,false);
 		        System.out.println("Message published");
 			}
 			catch(MqttException me) 
