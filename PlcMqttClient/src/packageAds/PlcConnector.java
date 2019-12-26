@@ -149,7 +149,7 @@ public class PlcConnector extends StateMachine {
 					{
 						System.out.println("Connection signal successfully transfered.");
 						busyStep = 10;
-						Done();
+						
 					}
 					else
 					{

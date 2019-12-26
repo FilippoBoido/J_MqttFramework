@@ -10,9 +10,14 @@ import de.beckhoff.jni.tcads.AdsCallDllFunction;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Date;
+
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+
 import java.lang.Integer;
 
-public class PlcFetcher extends StateMachine {
+public class PlcFetcher extends StateMachine implements MqttCallback {
 	
 	//The paths of the packages that need to be fetched, here.
 	private static final String mqttSubscriptionStorage = "ADS.fbMqttClient.aAdsSubscriptionStorage";
@@ -23,8 +28,8 @@ public class PlcFetcher extends StateMachine {
 	private static final String mqttSizeOfPublications = "ADS.fbMqttClient.uiSizeOfPublications";
 	private static final String mqttPublishing = "ADS.fbMqttClient.bPublishing";
 	private static final String mqttPublished = "ADS.fbMqttClient.bPublished";
-	private static final String mqttSubscribed = "ADS.fbMqttClient.bSubscribing";
-	private static final String mqttSubscribing = "ADS.fbMqttClient.bSubscribed";
+	private static final String mqttSubscribed = "ADS.fbMqttClient.bSubscribed";
+	private static final String mqttSubscribing = "ADS.fbMqttClient.bSubscribing";
 	private static final String mqttSizeOfAdsShell = "ADS.fbMqttClient.sizeOfAdsShell";
 //uiSubscriptionCounter uiPublicationCounter uiSizeOfSubscriptions uiSizeOfPublications
 	
@@ -77,7 +82,10 @@ public class PlcFetcher extends StateMachine {
 	private AdsMqttClient adsMqttClient;
 	
 	AmsAddr addr;
+	
 	long err;
+	int shell = 0;	
+	
 	int hdlSubscriptions,
 		hdlPublications,
 		hdlPublicationCounter,
@@ -90,6 +98,8 @@ public class PlcFetcher extends StateMachine {
 		hdlPublished,
 		hdlSizeOfAdsShell;
 	
+	byte[] topicByteArr = new byte[9];
+	byte[] payloadByteArr = new byte[34];
 	
 	private FetcherThread lifePackageFetcher;
 	
@@ -137,9 +147,9 @@ public class PlcFetcher extends StateMachine {
 		FetchSymbolToBuffer(hdlSizeOfSubscriptions, 2, buffer_sizeOfSubscriptions);
 		FetchSymbolToBuffer(hdlSizeOfPublications, 2, buffer_sizeOfPublications);
 
-		if(eStateMachine!=E_StateMachine.eError)
+		if(eStateMachine==E_StateMachine.eError)
 		{
-			System.out.println("Error occured while fetching core data.");
+			System.out.println("[PlcFetcher] Error occured while fetching core data part 1.");
 			return;		
 		}
 		
@@ -181,17 +191,28 @@ public class PlcFetcher extends StateMachine {
 		FetchSymbolToBuffer(hdlSizeOfAdsShell,2,buffer_sizeOfAdsShell);
 		sizeOfAdsShell = Convert.ByteArrToShort(buffer_sizeOfAdsShell.getByteArray());
 		
-		if(eStateMachine!=E_StateMachine.eError)
+		if(eStateMachine==E_StateMachine.eError)
 		{
-			System.out.println("Error occured while fetching core data.");
+			System.out.println("[PlcFetcher] Error occured while fetching core data part 2.");
 			return;		
 		}
+		
+		
+		//Debug 
+		System.out.println("Size of subscriptions: " + sizeOfSubscriptions);
+		System.out.println("Size of publications: "+ sizeOfPublications);
+		System.out.println("Publication counter: "+Convert.ByteArrToShort(buffer_publicationCounter.getByteArray()));
+		System.out.println("Subscription counter: "+Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray()));
+		
+		//Set callback for incoming messages
+		adsMqttClient.getMqttClient().setCallback(this);
+		
 		
 		Start(); 
 
 	}
 
-	void FetchSymbolToBuffer(int hdl,int size, JNIByteBuffer buffer)
+	synchronized void FetchSymbolToBuffer(int hdl,int size, JNIByteBuffer buffer)
 	{
 		long err = AdsCallDllFunction
 				   .adsSyncReadReq
@@ -239,7 +260,7 @@ public class PlcFetcher extends StateMachine {
 		return Convert.ByteArrToInt(handle.getByteArray());
 	}
 	
-	void WriteSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size)
+	synchronized void WriteSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size)
 	{
 		// Write value by handle
 		err = AdsCallDllFunction
@@ -280,26 +301,29 @@ public class PlcFetcher extends StateMachine {
 		
 		FetchSymbolToBuffer(hdlSubscribing,1,buffer_subscribing);	
 		FetchSymbolToBuffer(hdlPublishing,1,buffer_publishing);
+		FetchSymbolToBuffer(hdlSubscribed,1,buffer_subscribed);
+		FetchSymbolToBuffer(hdlPublished,1,buffer_published);
 		FetchSymbolToBuffer(hdlPublicationCounter, 2, buffer_publicationCounter);
 		FetchSymbolToBuffer(hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
-		int shell = 0;
-		byte[] topicByteArr = new byte[9];
-		byte[] payloadByteArr = new byte[34];
 		
-		if(Convert.ByteArrToBool(buffer_subscribing.getByteArray()))
+		if(Convert.ByteArrToBool(buffer_subscribing.getByteArray()) == true
+				&& Convert.ByteArrToBool( buffer_subscribed.getByteArray() ) == false)
 		{
 			//Plc wants to subscribe to new topic
 			FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, buffer_subscriptions);
 			
 			currentSubCounter = Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray());
-			currentSubCounter -= 1;
+			System.out.println("[PlcFetcher.Busy] Subscription counter: "+currentSubCounter);
+			currentSubCounter -= 2;
 			
 				//Extract the topic and subscribe
 			shell = currentSubCounter * sizeOfAdsShell;
 			
 			for(int i = 0 ; i < 9 ; i++)
 			{
-				topicByteArr[i] = buffer_subscribing.getByteArray()[shell+(i+1)];
+				topicByteArr[i] = buffer_subscriptions.getByteArray()[shell+(i+1)];
+				if(topicByteArr[i] == 0)
+					break;
 			}
 			
 			
@@ -307,35 +331,41 @@ public class PlcFetcher extends StateMachine {
 			if(adsMqttClient.Subscribe(topic))
 			{
 				//subscribed
+				System.out.println("[PlcFetcher.Busy] Subscribed to topic: " + topic);
 				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlSubscribed, 1);	
 			}
 		}
 		
-		if(Convert.ByteArrToBool(buffer_publishing.getByteArray()))
+		if(Convert.ByteArrToBool(buffer_publishing.getByteArray() ) == true 
+				&& Convert.ByteArrToBool( buffer_published.getByteArray() ) == false)
 		{
 			//Plc wants to publish a new topic
 			FetchSymbolToBuffer(hdlPublications,sizeOfPublications, buffer_publications);
 			
 			currentPubCounter = Convert.ByteArrToShort(buffer_publicationCounter.getByteArray());
-			currentPubCounter -= 1;
+			System.out.println("[PlcFetcher.Busy] Publication counter: "+currentPubCounter);
+			currentPubCounter -= 2;
 			
 			shell = currentPubCounter * sizeOfAdsShell;
 			
 			for(int i = 0 ; i < 9 ; i++)
 			{
-				topicByteArr[i] = buffer_publishing.getByteArray()[shell+(i+1)];
+				topicByteArr[i] = buffer_publications.getByteArray()[shell+(i+1)];
+				if(topicByteArr[i] == 0)
+					break;
 			}
 			for(int i = 0 ; i < 34 ; i++)
 			{
-				payloadByteArr[i] = buffer_publishing.getByteArray()[shell+(i+10)];
+				payloadByteArr[i] = buffer_publications.getByteArray()[shell+(i+10)];
 			}
 			
-			adsMqttClient.Publish(Convert.ByteArrToString(topicByteArr),payloadByteArr);
+			if(adsMqttClient.Publish(Convert.ByteArrToString(topicByteArr),payloadByteArr))
+			{
+				
+				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
+			}
 			//Published
-		}
-		
-		
-		
+		}	
 
 	}
 
@@ -354,6 +384,76 @@ public class PlcFetcher extends StateMachine {
 	@Override
 	protected void Error() {
 		
+		
+	}
+
+
+	@Override
+	public void connectionLost(Throwable cause) {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+	@Override
+	public void messageArrived(String topic, MqttMessage message) throws Exception {
+		//Search the topic in the list of subscriptions
+		byte[] locTopicByteArr = new byte[9];
+		byte[] locPayloadByteArr = new byte[34];
+		byte[] buffer;
+		String locTopic;
+		JNIByteBuffer locBuffer_subscriptions = new JNIByteBuffer(sizeOfSubscriptions);
+		JNIByteBuffer locBuffer_subscriptionCounter = new JNIByteBuffer(2);
+		
+		FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, locBuffer_subscriptions);
+		FetchSymbolToBuffer(hdlSubscriptionCounter, 2, locBuffer_subscriptionCounter);
+		
+		short currentSubCounter = Convert.ByteArrToShort(locBuffer_subscriptionCounter.getByteArray());
+		System.out.println("[PlcFetcher.messageArrived] Topic: " + topic);
+		
+		currentSubCounter -= 1;	
+		int loops = currentSubCounter;
+		System.out.println("[PlcFetcher.messageArrived] Calculated loops: " + loops);
+		currentSubCounter -= 1;
+		int shell = currentSubCounter * sizeOfAdsShell;
+		System.out.println("[PlcFetcher.messageArrived] Beginning of target shell at byte: " + shell);
+		
+		for(int i = 0; i < loops ; i = i + sizeOfAdsShell)
+		{
+			for(int k = 0 ; k < 9 ; k++)
+			{
+				locTopicByteArr[k] = locBuffer_subscriptions.getByteArray()[shell+(k+1)];
+				if(locTopicByteArr[i] == 0)
+					break;
+			}
+			locTopic = Convert.ByteArrToString(locTopicByteArr);
+			if(locTopic.compareTo(topic) == 0)
+			{
+				//topic found
+				//write back into plc
+				//locBuffer_subscriptions.setByteArray(message.getPayload());
+				buffer = locBuffer_subscriptions.getByteArray();
+				//bNewMessage must be set to true
+				buffer[(i*sizeOfAdsShell)] = 1;
+				
+				for(int j = 0 ; j < 34 ; j++)
+				{
+					locPayloadByteArr[j] = message.getPayload()[j];
+					buffer[(i*sizeOfAdsShell)+10+j] = locPayloadByteArr[j];
+				}
+		
+				System.out.println("[PlcFetcher.messageArrived] Topic found in plc.");
+				locBuffer_subscriptions.setByteArray(buffer, false);
+				WriteSymbolFromBuffer(locBuffer_subscriptions, hdlSubscriptions, sizeOfSubscriptions);	
+				return;
+			}
+		}
+	}
+
+
+	@Override
+	public void deliveryComplete(IMqttDeliveryToken token) {
+		// TODO Auto-generated method stub
 		
 	}
 

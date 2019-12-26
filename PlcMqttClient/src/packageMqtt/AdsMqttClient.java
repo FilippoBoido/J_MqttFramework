@@ -27,7 +27,12 @@ public class AdsMqttClient extends StateMachine{
 	private String clientId;   
 	private int qos  = 2;    
 	private MemoryPersistence persistence;
-	private MqttClient sampleClient;
+	private MqttClient mqttClient;
+	
+	public MqttClient getMqttClient() {
+		return mqttClient;
+	}
+
 	private boolean connected;
 	//private JNIByteBuffer buffer;
 
@@ -42,35 +47,56 @@ public class AdsMqttClient extends StateMachine{
 		this.broker = broker;
 		this.clientId = clientId;
 		persistence = new MemoryPersistence();  
+		try {
+			
+			mqttClient = new MqttClient(broker, clientId, persistence);
+			MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true);
+            System.out.println("[AdsMqttClient] Connecting to broker: "+broker);
+            mqttClient.connect(connOpts);
+            System.out.println("[AdsMqttClient] Connected");
+            connected = true;
+    
+        } catch(MqttException me) {
+        	
+            System.out.println("reason "+me.getReasonCode());
+            System.out.println("msg "+me.getMessage());
+            System.out.println("loc "+me.getLocalizedMessage());
+            System.out.println("cause "+me.getCause());
+            System.out.println("excep "+me);
+            me.printStackTrace();
+        }
 	}
 	public boolean Subscribe(String topic)
 	{
-		if(sampleClient != null && connected)
+		if(mqttClient != null && connected)
 		{
 			
 			try {
-				sampleClient.subscribe(topic);
-				System.out.println("Subscribed to topic: " + topic);
+				System.out.println("[AdsMqttClient.Subscribe] Subscribing to topic: " + topic);
+				mqttClient.subscribe(topic);
+				
 				
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 				return false;
 			}
-			
+			return true;
 		}
-		return true;
+		return false;
+		
 	}
 	public void Publish(String message)
 	{
-		if(sampleClient != null && connected)
+		if(mqttClient != null && connected)
 		{
 			try 
 			{
 				System.out.println("Publishing message: "+message);
 	            MqttMessage mqttMessage = new MqttMessage(message.getBytes());
 	            mqttMessage.setQos(qos);
-				sampleClient.publish(topic, mqttMessage);
+	            mqttClient.publish(topic, mqttMessage);
 		        System.out.println("Message published");
 			}
 			catch(MqttException me) 
@@ -86,14 +112,14 @@ public class AdsMqttClient extends StateMachine{
 		}    
 	}
 	
-	public void Publish(String topic, byte[] payload)
+	public boolean Publish(String topic, byte[] payload)
 	{
-		if(sampleClient != null && connected)
+		if(mqttClient != null && connected)
 		{
 			try 
 			{
-				sampleClient.publish(topic,payload,2,false);
-		        System.out.println("Message published");
+				mqttClient.publish(topic,payload,2,false);
+		        System.out.println("[AdsMqttClient.Publish] Message published");
 			}
 			catch(MqttException me) 
 			{
@@ -103,9 +129,11 @@ public class AdsMqttClient extends StateMachine{
 	            System.out.println("cause "+me.getCause());
 	            System.out.println("excep "+me);
 	            me.printStackTrace();
+	            return false;
 	        }
-			
+			return true;
 		}    
+		return false;
 	}
 	
 	public void Publish(JNIByteBuffer buffer,E_PublishMode ePublishMode)
@@ -157,38 +185,16 @@ public class AdsMqttClient extends StateMachine{
 	@Override
 	protected void Busy() {
 		
-		try {
-			if(sampleClient == null)
-			{
-				sampleClient = new MqttClient(broker, clientId, persistence);
-				MqttConnectOptions connOpts = new MqttConnectOptions();
-	            connOpts.setCleanSession(true);
-	            System.out.println("Connecting to broker: "+broker);
-	            sampleClient.connect(connOpts);
-	            System.out.println("Connected");
-	            connected = true;
-	            
-			}       
-           
-            
-        } catch(MqttException me) {
-        	Fault(0);
-            System.out.println("reason "+me.getReasonCode());
-            System.out.println("msg "+me.getMessage());
-            System.out.println("loc "+me.getLocalizedMessage());
-            System.out.println("cause "+me.getCause());
-            System.out.println("excep "+me);
-            me.printStackTrace();
-        }
+		
 		
 	}
 
 	@Override
 	protected void Idle() {
 		try {
-			sampleClient.disconnect();
+			mqttClient.disconnect();
 			System.out.println("Mqtt client disconnected.");
-			sampleClient.close();
+			mqttClient.close();
 			System.out.println("Mqtt client closed.");
 		} catch(MqttException me) {
             System.out.println("reason "+me.getReasonCode());
