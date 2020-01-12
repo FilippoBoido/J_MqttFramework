@@ -414,32 +414,34 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		currentSubCounter -= 1;	
 		int loops = currentSubCounter;
 		System.out.println("[PlcFetcher.messageArrived] Calculated loops: " + loops);
-		currentSubCounter -= 1;
+		//currentSubCounter -= 1;
 		int shell = currentSubCounter * sizeOfAdsShell;
-		System.out.println("[PlcFetcher.messageArrived] Beginning of target shell at byte: " + shell);
+		System.out.println("[PlcFetcher.messageArrived] Size of current subscription memory: " + shell);
 		
-		for(int i = 0; i < loops ; i = i + sizeOfAdsShell)
+		for(int i = 0; i < (loops * sizeOfAdsShell); i = i + sizeOfAdsShell)
 		{
+			System.out.println("[PlcFetcher.messageArrived] Size of current subscription offset: " + i);
 			for(int k = 0 ; k < 9 ; k++)
 			{
-				locTopicByteArr[k] = locBuffer_subscriptions.getByteArray()[shell+(k+1)];
-				if(locTopicByteArr[i] == 0)
+				locTopicByteArr[k] = locBuffer_subscriptions.getByteArray()[i+(k+1)];
+				if(locTopicByteArr[k] == 0)
 					break;
 			}
 			locTopic = Convert.ByteArrToString(locTopicByteArr);
-			if(locTopic.compareTo(topic) == 0)
+			System.out.println("[PlcFetcher.messageArrived] Topic name: " + locTopic);
+			if(locTopic.equals(topic) )
 			{
 				//topic found
 				//write back into plc
 				//locBuffer_subscriptions.setByteArray(message.getPayload());
 				buffer = locBuffer_subscriptions.getByteArray();
 				//bNewMessage must be set to true
-				buffer[(i*sizeOfAdsShell)] = 1;
+				buffer[i] = 1;
 				
 				for(int j = 0 ; j < 34 ; j++)
 				{
 					locPayloadByteArr[j] = message.getPayload()[j];
-					buffer[(i*sizeOfAdsShell)+10+j] = locPayloadByteArr[j];
+					buffer[(i)+11+j] = locPayloadByteArr[j];
 				}
 		
 				System.out.println("[PlcFetcher.messageArrived] Topic found in plc.");

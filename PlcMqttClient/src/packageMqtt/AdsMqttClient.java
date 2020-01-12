@@ -41,7 +41,7 @@ public class AdsMqttClient extends StateMachine{
 		return connected;
 	}
 
-	public AdsMqttClient(String topic, String broker, String clientId)
+	public AdsMqttClient(String broker, String clientId)
 	{
 		this.topic = topic;	
 		this.broker = broker;
