@@ -36,7 +36,7 @@ public class Main {
 		
 	    String generatedString = randomAlphaNumeric(8);
 	    System.out.println("Randomly generated client id: " + generatedString);
-		AdsMqttClient adsMqttClient = new AdsMqttClient("tcp://192.168.2.100:1883", generatedString);
+		AdsMqttClient adsMqttClient = new AdsMqttClient("tcp://192.168.2.123:1883", generatedString);
 		PlcConnector plcConnector = new PlcConnector(adsMqttClient);
 		
 					

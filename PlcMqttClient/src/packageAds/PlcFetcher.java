@@ -428,9 +428,12 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 					break;
 			}
 			locTopic = Convert.ByteArrToString(locTopicByteArr);
-			System.out.println("[PlcFetcher.messageArrived] Topic name: " + locTopic);
-			if(locTopic.equals(topic) )
+			locTopic = locTopic.trim();
+			topic = topic.trim();
+			
+			if( locTopic.equals(topic) == true )
 			{
+				//System.out.println("[PlcFetcher.messageArrived] Topics equal.");
 				//topic found
 				//write back into plc
 				//locBuffer_subscriptions.setByteArray(message.getPayload());
@@ -438,12 +441,14 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 				//bNewMessage must be set to true
 				buffer[i] = 1;
 				
-				for(int j = 0 ; j < 34 ; j++)
+				for(int j = 0 ; j < message.getPayload().length ; j++)
 				{
+					
 					locPayloadByteArr[j] = message.getPayload()[j];
-					buffer[(i)+11+j] = locPayloadByteArr[j];
+					buffer[(i)+12+j] = locPayloadByteArr[j];
 				}
-		
+				String decodedMessage = new String(locPayloadByteArr, "UTF-8");
+				System.out.println("[PlcFetcher.messageArrived] decoded message: " + decodedMessage);
 				System.out.println("[PlcFetcher.messageArrived] Topic found in plc.");
 				locBuffer_subscriptions.setByteArray(buffer, false);
 				WriteSymbolFromBuffer(locBuffer_subscriptions, hdlSubscriptions, sizeOfSubscriptions);	

@@ -140,27 +140,27 @@ public class AdsMqttClient extends StateMachine{
 	{
 		switch(ePublishMode)
 		{
-		case NO_PUBLISH_MODE:
-			
-			System.out.println("AdsMqttClient: NO_PUBLISH_MODE.");
-			
-			break;
-			
-		case LIFE_PACKAGE:
-			
-			ByteBuffer bb = ByteBuffer.wrap(buffer.getByteArray());
-			bb.order(ByteOrder.LITTLE_ENDIAN);
-			short state = bb.getShort();	
-			long timeConversion = (long) bb.getInt() * 1000;
-			Date date = new Date(timeConversion);
-			SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
-			sdf.setTimeZone(TimeZone.getTimeZone("Germany/Berlin"));
-			
-			Publish(StateMachine.getStateAsString(state));
-			Publish(sdf.format(date));
-			
-			
-			break;
+			case NO_PUBLISH_MODE:
+				
+				System.out.println("AdsMqttClient: NO_PUBLISH_MODE.");
+				
+				break;
+				
+			case LIFE_PACKAGE:
+				
+				ByteBuffer bb = ByteBuffer.wrap(buffer.getByteArray());
+				bb.order(ByteOrder.LITTLE_ENDIAN);
+				short state = bb.getShort();	
+				long timeConversion = (long) bb.getInt() * 1000;
+				Date date = new Date(timeConversion);
+				SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
+				sdf.setTimeZone(TimeZone.getTimeZone("Germany/Berlin"));
+				
+				Publish(StateMachine.getStateAsString(state));
+				Publish(sdf.format(date));
+				
+				
+				break;
 		}
 	}
 	
