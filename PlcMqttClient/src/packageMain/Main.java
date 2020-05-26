@@ -23,7 +23,7 @@ public class Main {
 
 	
 	public static E_MainStep eMainStep  = E_MainStep.INIT;
-	private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	private static final String ALPHA_NUMERIC_STRING = "0123456789";//"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	
 	public static String randomAlphaNumeric(int count) {
 		StringBuilder builder = new StringBuilder();
@@ -41,7 +41,7 @@ public class Main {
 	    System.out.println("Randomly generated client id: " + generatedString);
 		AdsMqttClient adsMqttClient = new AdsMqttClient("tcp://192.168.2.107:1883", generatedString);
 		AmsAddr addr = new AmsAddr();
-		PlcConnector plcConnector = new PlcConnector(addr);
+		PlcConnector plcConnector = new PlcConnector(addr,Integer.parseInt(generatedString));
 		PlcFetcher plcFetcher = new PlcFetcher(addr,adsMqttClient);
 					
 		while(true)

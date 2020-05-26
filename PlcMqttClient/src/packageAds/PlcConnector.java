@@ -12,7 +12,7 @@ import de.beckhoff.jni.tcads.AdsNotificationAttrib;
 import de.beckhoff.jni.tcads.AdsNotificationHeader;
 import de.beckhoff.jni.tcads.AmsAddr;
 import de.beckhoff.jni.tcads.CallbackListenerAdsState;
-import packageMqtt.AdsMqttClient;
+
 import packageSystem.StateMachine;
 
 public class PlcConnector extends StateMachine {
@@ -32,23 +32,24 @@ public class PlcConnector extends StateMachine {
 	
 	JNILong notification = new JNILong();
 	
-	int busyStep;
+	int busyStep,clientId;
 	boolean connected;
 	String symbol;
 	
 	AdsNotificationAttrib attr = new AdsNotificationAttrib();
     // Create and add listener
-    AdsListener listener = new AdsListener();
+	AdsConnectorListener listener = new AdsConnectorListener();
     AdsCallbackObject callObject = new AdsCallbackObject();
     
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
 	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.sDateTime";
 	private static final String test = "MAIN.bTest";
 	
-	public PlcConnector(AmsAddr addr)
+	public PlcConnector(AmsAddr addr, int clientId)
 	{
 		super();
 		this.addr = addr;	
+		this.clientId = clientId;
 	}
 
 	public boolean isConnected()
@@ -79,9 +80,8 @@ public class PlcConnector extends StateMachine {
 		testDataBuf = new JNIByteBuffer(1);
 		//Open communication
 		AdsCallDllFunction.adsPortOpen();
-		err = AdsCallDllFunction.getLocalAddress(addr);
-		
 		addr.setPort(851);
+		err = AdsCallDllFunction.getLocalAddress(addr);
 		
 		if(err != 0)
 		{
@@ -93,6 +93,20 @@ public class PlcConnector extends StateMachine {
 			System.out.println("Success: Open communication!");
 			// Specify attributes of the notificationRequest
             
+		}
+		int hdlLifePkgBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
+		// Create notificationHandle
+		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+		        addr,
+		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+		        hdlLifePkgBuffToInt,        // IndexOffset
+		        attr,       // The defined AdsNotificationAttrib object
+		        clientId,         // Choose arbitrary number
+		        notification);
+		
+		if(err!=0) { 
+		    System.out.println("Error: Add notification: 0x" 
+		            + Long.toHexString(err)); 
 		}
 		Start();		
 
@@ -232,30 +246,18 @@ public class PlcConnector extends StateMachine {
 			//********************************************************************************************************
 			case 10:
 				connected = true;
-				// Specify attributes of the notificationRequest
-				
-				
-	            
-				// Handle: byte[] to int
-				int hdlTestBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
-	            // Create notificationHandle
-	            err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		                addr,
-		                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		                hdlTestBuffToInt,        // IndexOffset
-		                attr,       // The defined AdsNotificationAttrib object
-		                42,         // Choose arbitrary number
-		                notification);
-	            
-	            if(err!=0) { 
-	                System.out.println("Error: Add notification: 0x" 
-	                        + Long.toHexString(err)); 
-	            }
 	           
 	            busyStep = 20;
 				break;
 				
 			case 20:
+				
+				if(!listener.isPlcConnected())
+				{
+					connected = false;
+					Fault(10);
+					return;
+				}
 				break;
 		}
 	
@@ -278,6 +280,7 @@ public class PlcConnector extends StateMachine {
 		switch(errorType)
 		{
 		case 10://close connection
+			callObject.removeListenerCallbackAdsState(listener);
 			AdsCallDllFunction.adsPortClose();
 			connected = false;
 			break;
@@ -289,9 +292,10 @@ public class PlcConnector extends StateMachine {
 
 }
 
-class AdsListener implements CallbackListenerAdsState {
+class AdsConnectorListener implements CallbackListenerAdsState {
     private final static long SPAN = 11644473600000L;
-
+    Date notificationDate;
+    Date currentDate,resultDate;
     // Callback function
     public void onEvent(AmsAddr addr,
                     AdsNotificationHeader notification,
@@ -303,7 +307,7 @@ class AdsListener implements CallbackListenerAdsState {
 
         // Date accepts millisecs since 01.01.1970.
         // Convert to millisecs and substract span.
-        Date notificationDate = new Date(dateInMillis / 10000 - SPAN);
+        notificationDate = new Date(dateInMillis / 10000 - SPAN);
 
         System.out.println("Value:\t\t"
                 + Convert.ByteArrToString(notification.getData()));
@@ -311,5 +315,46 @@ class AdsListener implements CallbackListenerAdsState {
         System.out.println("Time:\t\t" + notificationDate.toString());
         System.out.println("User:\t\t" + user);
         System.out.println("ServerNetID:\t" + addr.getNetIdString() + "\n");
+    }
+    
+    public boolean isPlcConnected()
+    {
+    	
+    	if(notificationDate == null)
+    		return true;
+    	
+    	currentDate = new Date();
+    	int notificationSeconds = notificationDate.getSeconds();
+    	int notificationMinutes = notificationDate.getMinutes();
+    	int currentDateSeconds = currentDate.getSeconds();
+    	int currentDateMinutes = currentDate.getMinutes();
+    	
+    	
+    	if(currentDateMinutes == notificationMinutes)
+    	{
+    		if((currentDateSeconds - notificationSeconds) > 5)
+    		{
+    			System.out.println("isPlcConnected?: No, diffSeconds = " + (currentDateSeconds - notificationSeconds));
+    			return false;
+    		}
+    		else
+    			return true;
+    	}else if (currentDateMinutes > notificationMinutes)
+    	{
+    		//cd = 5s nm = 59s 64
+    		if((currentDateSeconds + notificationSeconds) < 64 )
+    			return true;
+    		else
+    		{	
+    			System.out.println("isPlcConnected?: No, diffSeconds = " + ((currentDateSeconds + notificationSeconds) - 60));
+    			return false;
+    		}
+    	}else
+    	{
+    		System.out.println("isPlcConnected?: Programming error");
+    		return false;
+    	}
+    
+    	
     }
 }

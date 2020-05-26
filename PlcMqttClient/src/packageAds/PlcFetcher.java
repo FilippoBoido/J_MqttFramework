@@ -20,17 +20,17 @@ import java.lang.Integer;
 public class PlcFetcher extends StateMachine implements MqttCallback {
 	
 	//The paths of the packages that need to be fetched, here.
-	private static final String mqttSubscriptionStorage = "ADS.fbMqttClient.aAdsSubscriptionStorage";
-	private static final String mqttPublicationStorage = "ADS.fbMqttClient.aAdsPublicationStorage";
-	private static final String mqttPublicationCounter = "ADS.fbMqttClient.uiPublicationCounter";
-	private static final String mqttSubscriptionCounter = "ADS.fbMqttClient.uiSubscriptionCounter";
-	private static final String mqttSizeOfSubscriptions = "ADS.fbMqttClient.uiSizeOfSubscriptions";
-	private static final String mqttSizeOfPublications = "ADS.fbMqttClient.uiSizeOfPublications";
-	private static final String mqttPublishing = "ADS.fbMqttClient.bPublishing";
-	private static final String mqttPublished = "ADS.fbMqttClient.bPublished";
-	private static final String mqttSubscribed = "ADS.fbMqttClient.bSubscribed";
-	private static final String mqttSubscribing = "ADS.fbMqttClient.bSubscribing";
-	private static final String mqttSizeOfAdsShell = "ADS.fbMqttClient.sizeOfAdsShell";
+	protected static final String mqttSubscriptionStorage = "ADS.fbMqttClient.aAdsSubscriptionStorage";
+	protected static final String mqttPublicationStorage = "ADS.fbMqttClient.aAdsPublicationStorage";
+	protected static final String mqttPublicationCounter = "ADS.fbMqttClient.uiPublicationCounter";
+	protected static final String mqttSubscriptionCounter = "ADS.fbMqttClient.uiSubscriptionCounter";
+	protected static final String mqttSizeOfSubscriptions = "ADS.fbMqttClient.uiSizeOfSubscriptions";
+	protected static final String mqttSizeOfPublications = "ADS.fbMqttClient.uiSizeOfPublications";
+	protected static final String mqttPublishing = "ADS.fbMqttClient.bPublishing";
+	protected static final String mqttPublished = "ADS.fbMqttClient.bPublished";
+	protected static final String mqttSubscribed = "ADS.fbMqttClient.bSubscribed";
+	protected static final String mqttSubscribing = "ADS.fbMqttClient.bSubscribing";
+	protected static final String mqttSizeOfAdsShell = "ADS.fbMqttClient.sizeOfAdsShell";
 //uiSubscriptionCounter uiPublicationCounter uiSizeOfSubscriptions uiSizeOfPublications
 	
 	JNIByteBuffer 
