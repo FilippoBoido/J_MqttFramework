@@ -20,15 +20,30 @@ public class PlcConnector extends StateMachine {
 
 	long err;
 	AmsAddr addr;
-	JNIByteBuffer handleBuff,symbolBuff,dataBuff;
+	JNIByteBuffer 	handleBuff,
+					symbolBuff,
+					dataBuff,
+					lifePkgHandle,
+					lifePkgSymBuf,
+					lifePkgDataBuf,
+					testHandle,
+					testSymBuf,
+					testDataBuf;
+	
 	JNILong notification = new JNILong();
 	
 	int busyStep;
 	boolean connected;
+	String symbol;
 	
-	
+	AdsNotificationAttrib attr = new AdsNotificationAttrib();
+    // Create and add listener
+    AdsListener listener = new AdsListener();
+    AdsCallbackObject callObject = new AdsCallbackObject();
+    
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
-	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage";
+	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.sDateTime";
+	private static final String test = "MAIN.bTest";
 	
 	public PlcConnector(AmsAddr addr)
 	{
@@ -45,11 +60,23 @@ public class PlcConnector extends StateMachine {
 	@Override
 	protected void Init() {
 		
-		
+		attr.setCbLength(81);
+	    attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
+	    attr.setDwChangeFilter(10000000);   // 1 sec
+	    attr.setNMaxDelay(20000000);        // 2 sec
+	    callObject.addListenerCallbackAdsState(listener);
+	    
 		handleBuff = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		symbolBuff = new JNIByteBuffer(plcConnected.getBytes());
 		dataBuff = new JNIByteBuffer(1);
 		
+		lifePkgHandle = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
+		lifePkgSymBuf = new JNIByteBuffer(lifePackage.getBytes());
+		lifePkgDataBuf = new JNIByteBuffer(89);
+		
+		testHandle = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
+		testSymBuf = new JNIByteBuffer(test.getBytes());
+		testDataBuf = new JNIByteBuffer(1);
 		//Open communication
 		AdsCallDllFunction.adsPortOpen();
 		err = AdsCallDllFunction.getLocalAddress(addr);
@@ -91,6 +118,7 @@ public class PlcConnector extends StateMachine {
 			//********************************************************************************************************
 			case 0:
 			
+				//Get Handle for cbConnected.bValue
 				err = AdsCallDllFunction
 						.adsSyncReadWriteReq
 						(
@@ -112,10 +140,37 @@ public class PlcConnector extends StateMachine {
 				} 
 				else 
 				{
-				    System.out.println("Success: Get handle!");
+					symbol = new String(symbolBuff.getByteArray());
+				    System.out.println("Success: Got " + symbol  +" handle!");
 				}
 				
-				// Handle: byte[] to int
+				//Get Handle for Main.bTest
+				err = AdsCallDllFunction
+						.adsSyncReadWriteReq
+						(
+							addr,
+							AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
+							0x0,
+							lifePkgHandle.getUsedBytesCount(),
+							lifePkgHandle,
+							lifePkgSymBuf.getUsedBytesCount(),
+							lifePkgSymBuf
+						);
+		
+				if(err!=0) 
+				{ 
+				    System.out.println("Error: Get handle: 0x" + Long.toHexString(err)); 
+				    
+				    Fault(10);
+				    return;
+				} 
+				else 
+				{
+					symbol = new String(lifePkgSymBuf.getByteArray());
+				    System.out.println("Success: Got " + symbol  +" handle!");
+				}
+				
+				// Handle: byte[] to int Convert the bytearray handle to an int and feed it to the adsSyncWriteReq
 				int hdlBuffToInt = Convert.ByteArrToInt(handleBuff.getByteArray());
 				
 				// Write value by handle
@@ -137,6 +192,7 @@ public class PlcConnector extends StateMachine {
 				}
 				
 				// Read value by handle
+				//Read the value back and check if signal succresfully transfered (true)
 				err = AdsCallDllFunction
 						.adsSyncReadReq
 						(
@@ -177,29 +233,25 @@ public class PlcConnector extends StateMachine {
 			case 10:
 				connected = true;
 				// Specify attributes of the notificationRequest
-	            AdsNotificationAttrib attr = new AdsNotificationAttrib();
-	            attr.setCbLength(Integer.SIZE / Byte.SIZE);
-	            attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
-	            attr.setDwChangeFilter(10000000);   // 1 sec
-	            attr.setNMaxDelay(20000000);        // 2 sec
-
-	            // Create and add listener
-	            AdsListener listener = new AdsListener();
-	            AdsCallbackObject callObject = new AdsCallbackObject();
-	            callObject.addListenerCallbackAdsState(listener);
-
+				
+				
+	            
+				// Handle: byte[] to int
+				int hdlTestBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
 	            // Create notificationHandle
 	            err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-	                addr,
-	                0x4020,     // IndexGroup
-	                0x0,        // IndexOffset
-	                attr,       // The defined AdsNotificationAttrib object
-	                42,         // Choose arbitrary number
-	                notification);
+		                addr,
+		                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+		                hdlTestBuffToInt,        // IndexOffset
+		                attr,       // The defined AdsNotificationAttrib object
+		                42,         // Choose arbitrary number
+		                notification);
+	            
 	            if(err!=0) { 
 	                System.out.println("Error: Add notification: 0x" 
 	                        + Long.toHexString(err)); 
 	            }
+	           
 	            busyStep = 20;
 				break;
 				
@@ -254,7 +306,7 @@ class AdsListener implements CallbackListenerAdsState {
         Date notificationDate = new Date(dateInMillis / 10000 - SPAN);
 
         System.out.println("Value:\t\t"
-                + Convert.ByteArrToInt(notification.getData()));
+                + Convert.ByteArrToString(notification.getData()));
         System.out.println("Notification:\t" + notification.getHNotification());
         System.out.println("Time:\t\t" + notificationDate.toString());
         System.out.println("User:\t\t" + user);
