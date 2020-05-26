@@ -1,5 +1,5 @@
 package packageMain;
-import java.nio.ByteBuffer;
+
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.util.Date;
@@ -9,6 +9,7 @@ import de.beckhoff.jni.JNIByteBuffer;
 import de.beckhoff.jni.tcads.AmsAddr;
 import packageAds.FetcherThread;
 import packageAds.PlcConnector;
+import packageAds.PlcEventDrivenFetcher;
 import packageAds.PlcFetcher;
 import packageMqtt.AdsMqttClient;
 import packageSystem.StateMachine;
@@ -41,8 +42,8 @@ public class Main {
 	    System.out.println("Randomly generated client id: " + generatedString);
 		AdsMqttClient adsMqttClient = new AdsMqttClient("tcp://192.168.2.107:1883", generatedString);
 		AmsAddr addr = new AmsAddr();
-		PlcConnector plcConnector = new PlcConnector(addr,Integer.parseInt(generatedString));
-		PlcFetcher plcFetcher = new PlcFetcher(addr,adsMqttClient);
+		PlcConnector plcConnector = new PlcConnector(addr);
+		PlcEventDrivenFetcher plcFetcher = new PlcEventDrivenFetcher(addr,adsMqttClient);
 					
 		while(true)
 		{

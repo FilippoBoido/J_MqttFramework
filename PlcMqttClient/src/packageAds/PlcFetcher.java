@@ -33,38 +33,38 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	protected static final String mqttSizeOfAdsShell = "ADS.fbMqttClient.sizeOfAdsShell";
 //uiSubscriptionCounter uiPublicationCounter uiSizeOfSubscriptions uiSizeOfPublications
 	
-	JNIByteBuffer 
-		handle_subscriptions,
-		symbol_subscriptions,
-		handle_publications,
-		symbol_publications,
-		handle_subscriptionCounter,
-		symbol_subscriptionCounter,
-		handle_publicationCounter,
-		symbol_publicationCounter,
-		handle_sizeOfSubscriptions,
-		symbol_sizeOfSubscriptions,
-		handle_sizeOfPublications,
-		symbol_sizeOfPublications,
-		handle_publishing,
-		symbol_publishing,
-		handle_published,
-		symbol_published,
-		handle_subscribed,
-		symbol_subscribed,
-		handle_subscribing,
-		symbol_subscribing,
-		handle_sizeOfAdsShell,
-		symbol_sizeOfAdsShell;
+	protected JNIByteBuffer handle_subscriptions,
+							symbol_subscriptions,
+							handle_publications,
+							symbol_publications,
+							handle_subscriptionCounter,
+							symbol_subscriptionCounter,
+							handle_publicationCounter,
+							symbol_publicationCounter,
+							handle_sizeOfSubscriptions,
+							symbol_sizeOfSubscriptions,
+							handle_sizeOfPublications,
+							symbol_sizeOfPublications,
+							handle_publishing,
+							symbol_publishing,
+							handle_published,
+							symbol_published,
+							handle_subscribed,
+							symbol_subscribed,
+							handle_subscribing,
+							symbol_subscribing,
+							handle_sizeOfAdsShell,
+							symbol_sizeOfAdsShell;
+		
 	
 	//The buffers for the packages that need to be fetched, here.
 	
 
-	private JNIByteBuffer buffer_sizeOfSubscriptions = new JNIByteBuffer(2);
-	private JNIByteBuffer buffer_sizeOfPublications = new JNIByteBuffer(2);
-	private JNIByteBuffer buffer_sizeOfAdsShell = new JNIByteBuffer(2);
+	protected JNIByteBuffer buffer_sizeOfSubscriptions = new JNIByteBuffer(2);
+	protected JNIByteBuffer buffer_sizeOfPublications = new JNIByteBuffer(2);
+	protected JNIByteBuffer buffer_sizeOfAdsShell = new JNIByteBuffer(2);
 	
-	private JNIByteBuffer 	buffer_subscriptions,
+	protected JNIByteBuffer buffer_subscriptions,
 							buffer_publications,
 							buffer_publicationCounter,
 							buffer_subscriptionCounter,
@@ -73,30 +73,30 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 							buffer_subscribing,
 							buffer_subscribed;
 	
-	private short 	currentSubCounter,
+	protected short currentSubCounter,
 					currentPubCounter,
 					sizeOfSubscriptions,
 					sizeOfPublications,
 					sizeOfAdsShell;
 	 
-	private AdsMqttClient adsMqttClient;
+	protected AdsMqttClient adsMqttClient;
 	
 	AmsAddr addr;
 	
 	long err;
 	int shell = 0;	
 	
-	int hdlSubscriptions,
-		hdlPublications,
-		hdlPublicationCounter,
-		hdlSubscriptionCounter,
-		hdlSizeOfSubscriptions,
-		hdlSizeOfPublications,
-		hdlSubscribing,
-		hdlSubscribed,
-		hdlPublishing,
-		hdlPublished,
-		hdlSizeOfAdsShell;
+	protected int 	hdlSubscriptions,
+					hdlPublications,
+					hdlPublicationCounter,
+					hdlSubscriptionCounter,
+					hdlSizeOfSubscriptions,
+					hdlSizeOfPublications,
+					hdlSubscribing,
+					hdlSubscribed,
+					hdlPublishing,
+					hdlPublished,
+					hdlSizeOfAdsShell;
 	
 	byte[] topicByteArr = new byte[9];
 	byte[] payloadByteArr = new byte[34];

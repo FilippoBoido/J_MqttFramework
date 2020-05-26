@@ -19,6 +19,7 @@ public class PlcConnector extends StateMachine {
 	
 
 	long err;
+	int hdlLifePkgBuffToInt;
 	AmsAddr addr;
 	JNIByteBuffer 	handleBuff,
 					symbolBuff,
@@ -30,26 +31,26 @@ public class PlcConnector extends StateMachine {
 					testSymBuf,
 					testDataBuf;
 	
-	JNILong notification = new JNILong();
+	JNILong lifePkgNotification; 
 	
-	int busyStep,clientId;
+	int busyStep;
 	boolean connected;
 	String symbol;
 	
 	AdsNotificationAttrib attr = new AdsNotificationAttrib();
     // Create and add listener
-	AdsConnectorListener listener = new AdsConnectorListener();
+	AdsConnectorListener listener; 
     AdsCallbackObject callObject = new AdsCallbackObject();
     
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
 	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.sDateTime";
 	private static final String test = "MAIN.bTest";
 	
-	public PlcConnector(AmsAddr addr, int clientId)
+	public PlcConnector(AmsAddr addr)
 	{
 		super();
 		this.addr = addr;	
-		this.clientId = clientId;
+		
 	}
 
 	public boolean isConnected()
@@ -64,9 +65,8 @@ public class PlcConnector extends StateMachine {
 		attr.setCbLength(81);
 	    attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
 	    attr.setDwChangeFilter(10000000);   // 1 sec
-	    attr.setNMaxDelay(20000000);        // 2 sec
-	    callObject.addListenerCallbackAdsState(listener);
-	    
+	    attr.setNMaxDelay(10000000);        // 1 sec
+	        
 		handleBuff = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		symbolBuff = new JNIByteBuffer(plcConnected.getBytes());
 		dataBuff = new JNIByteBuffer(1);
@@ -80,8 +80,9 @@ public class PlcConnector extends StateMachine {
 		testDataBuf = new JNIByteBuffer(1);
 		//Open communication
 		AdsCallDllFunction.adsPortOpen();
-		addr.setPort(851);
+		
 		err = AdsCallDllFunction.getLocalAddress(addr);
+		addr.setPort(851);
 		
 		if(err != 0)
 		{
@@ -94,20 +95,7 @@ public class PlcConnector extends StateMachine {
 			// Specify attributes of the notificationRequest
             
 		}
-		int hdlLifePkgBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
-		// Create notificationHandle
-		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		        addr,
-		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		        hdlLifePkgBuffToInt,        // IndexOffset
-		        attr,       // The defined AdsNotificationAttrib object
-		        clientId,         // Choose arbitrary number
-		        notification);
-		
-		if(err!=0) { 
-		    System.out.println("Error: Add notification: 0x" 
-		            + Long.toHexString(err)); 
-		}
+			
 		Start();		
 
 	}
@@ -158,7 +146,7 @@ public class PlcConnector extends StateMachine {
 				    System.out.println("Success: Got " + symbol  +" handle!");
 				}
 				
-				//Get Handle for Main.bTest
+				//Get Handle for lifePkg
 				err = AdsCallDllFunction
 						.adsSyncReadWriteReq
 						(
@@ -182,6 +170,24 @@ public class PlcConnector extends StateMachine {
 				{
 					symbol = new String(lifePkgSymBuf.getByteArray());
 				    System.out.println("Success: Got " + symbol  +" handle!");
+				}
+				
+				hdlLifePkgBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
+				lifePkgNotification = new JNILong(hdlLifePkgBuffToInt);
+				listener = new AdsConnectorListener(hdlLifePkgBuffToInt);
+				callObject.addListenerCallbackAdsState(listener);
+				// Create notificationHandle
+				err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+				        addr,
+				        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+				        hdlLifePkgBuffToInt,        // IndexOffset
+				        attr,       // The defined AdsNotificationAttrib object
+				        hdlLifePkgBuffToInt,         // Choose arbitrary number
+				        lifePkgNotification);
+				
+				if(err!=0) { 
+				    System.out.println("Error adding lifePkg notification: 0x" 
+				            + Long.toHexString(err)); 
 				}
 				
 				// Handle: byte[] to int Convert the bytearray handle to an int and feed it to the adsSyncWriteReq
@@ -296,6 +302,12 @@ class AdsConnectorListener implements CallbackListenerAdsState {
     private final static long SPAN = 11644473600000L;
     Date notificationDate;
     Date currentDate,resultDate;
+    
+    int listenerID;
+    public AdsConnectorListener(int listenerID)
+    {
+    	this.listenerID = listenerID;
+    }
     // Callback function
     public void onEvent(AmsAddr addr,
                     AdsNotificationHeader notification,
@@ -303,18 +315,22 @@ class AdsConnectorListener implements CallbackListenerAdsState {
 
         // The PLC timestamp is coded in Windows FILETIME.
         // Nano secs since 01.01.1601.
-        long dateInMillis = notification.getNTimeStamp();
-
-        // Date accepts millisecs since 01.01.1970.
-        // Convert to millisecs and substract span.
-        notificationDate = new Date(dateInMillis / 10000 - SPAN);
-
-        System.out.println("Value:\t\t"
-                + Convert.ByteArrToString(notification.getData()));
-        System.out.println("Notification:\t" + notification.getHNotification());
-        System.out.println("Time:\t\t" + notificationDate.toString());
-        System.out.println("User:\t\t" + user);
-        System.out.println("ServerNetID:\t" + addr.getNetIdString() + "\n");
+    	if((int) user == listenerID)
+    	{
+	        long dateInMillis = notification.getNTimeStamp();
+	
+	        // Date accepts millisecs since 01.01.1970.
+	        // Convert to millisecs and substract span.
+	        notificationDate = new Date(dateInMillis / 10000 - SPAN);
+	        
+	        System.out.println("Value:\t\t"
+	                + Convert.ByteArrToString(notification.getData()));
+	        System.out.println("Notification:\t" + notification.getHNotification());
+	        System.out.println("Time:\t\t" + notificationDate.toString());
+	        System.out.println("User:\t\t" + user);
+	        System.out.println("ServerNetID:\t" + addr.getNetIdString() + "\n");
+	        
+    	}
     }
     
     public boolean isPlcConnected()

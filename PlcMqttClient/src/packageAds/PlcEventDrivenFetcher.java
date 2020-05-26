@@ -1,7 +1,5 @@
 package packageAds;
 
-import java.util.Date;
-
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -19,13 +17,19 @@ import de.beckhoff.jni.tcads.CallbackListenerAdsState;
 import packageMqtt.AdsMqttClient;
 
 
-public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
+public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,CallbackListenerAdsState {
 
 	
 	AdsNotificationAttrib attr = new AdsNotificationAttrib();
-	AdsFetcherListener listener = new AdsFetcherListener();
     AdsCallbackObject callObject = new AdsCallbackObject();
-    JNILong notification = new JNILong();
+    
+    JNILong subscribingNotification,
+    		subscribedNotification,
+    		publishingNotification,
+    		publishedNotification,
+    		subscriptionCounterNotification,
+    		publicationCounterNotification;
+    
     int notificationID,
     	adsSubscribingHandle,
     	adsSubscribedHandle,
@@ -33,10 +37,19 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
     	adsPublishedHandle,
     	adsSubscriptionCounterHandle,
     	adsPublicationCounterHandle;
+    
+    boolean adsSubscribing,
+			adsSubscribed,
+			adsPublishing,
+			adsPublished,
+    		subscribingNotificationSignal,
+    		publishingNotificationSignal;
+    
+	int adsSubscriptionCounter,
+		adsPublicationCounter;
+	
 	public PlcEventDrivenFetcher(AmsAddr addr, AdsMqttClient adsMqttClient) {
 		super(addr, adsMqttClient);
-		
-		// TODO Auto-generated constructor stub
 	}
 
 	@Override
@@ -51,11 +64,19 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
     	adsSubscriptionCounterHandle = Convert.ByteArrToInt(handle_subscriptionCounter.getByteArray());
     	adsPublicationCounterHandle = Convert.ByteArrToInt(handle_publicationCounter.getByteArray());
 		
+    	subscribingNotification = new JNILong(adsSubscribingHandle);
+		subscribedNotification = new JNILong(adsSubscribedHandle);
+		publishingNotification = new JNILong(adsPublishingHandle);
+		publishedNotification = new JNILong(adsPublishedHandle);
+		subscriptionCounterNotification = new JNILong(adsSubscriptionCounterHandle);
+		publicationCounterNotification = new JNILong(adsPublicationCounterHandle);
+    	
 		attr.setCbLength(1);
 	    attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
 	    attr.setDwChangeFilter(10000000);   // 1 sec
 	    attr.setNMaxDelay(20000000);        // 2 sec
-	    callObject.addListenerCallbackAdsState(listener);
+	    
+	    callObject.addListenerCallbackAdsState(this);
 		
 		// Create notificationHandle
 		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
@@ -64,7 +85,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 		        adsSubscribingHandle,        	// IndexOffset
 		        attr,       		// The defined AdsNotificationAttrib object
 		        adsSubscribingHandle,         	// Choose arbitrary number
-		        notification);
+		        subscribingNotification);
 		
 		if(err!=0) { 
 		    System.out.println("Error: Add notification: 0x" 
@@ -78,7 +99,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 		        adsSubscribedHandle,        	// IndexOffset
 		        attr,       		// The defined AdsNotificationAttrib object
 		        adsSubscribedHandle,         	// Choose arbitrary number
-		        notification);
+		        subscribedNotification);
 		
 		if(err!=0) { 
 		    System.out.println("Error: Add notification: 0x" 
@@ -92,7 +113,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 		        adsPublishingHandle,        	// IndexOffset
 		        attr,       		// The defined AdsNotificationAttrib object
 		        adsPublishingHandle,         	// Choose arbitrary number
-		        notification);
+		        publishingNotification);
 		
 		if(err!=0) { 
 		    System.out.println("Error: Add notification: 0x" 
@@ -106,13 +127,13 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 		        adsPublishedHandle,        	// IndexOffset
 		        attr,       		// The defined AdsNotificationAttrib object
 		        adsPublishedHandle,         	// Choose arbitrary number
-		        notification);
+		        publishedNotification);
 		
 		if(err!=0) { 
 		    System.out.println("Error: Add notification: 0x" 
 		            + Long.toHexString(err)); 
 		}
-		
+		/*
 		//change size to 2 bytes for the subscription and publication counter
 		attr.setCbLength(2);
 	
@@ -123,7 +144,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 		        adsSubscriptionCounterHandle,        	// IndexOffset
 		        attr,       		// The defined AdsNotificationAttrib object
 		        adsSubscriptionCounterHandle,         	// Choose arbitrary number
-		        notification);
+		        subscriptionCounterNotification);
 		
 		if(err!=0) { 
 		    System.out.println("Error: Add notification: 0x" 
@@ -137,12 +158,13 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 		        adsPublicationCounterHandle,        	// IndexOffset
 		        attr,       		// The defined AdsNotificationAttrib object
 		        adsPublicationCounterHandle,         	// Choose arbitrary number
-		        notification);
+		        publicationCounterNotification);
 		
 		if(err!=0) { 
 		    System.out.println("Error: Add notification: 0x" 
 		            + Long.toHexString(err)); 
 		}
+		*/
 	}
 	
 	@Override
@@ -158,23 +180,18 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 	}
 	
 	@Override
-	protected void Busy() {
-	/*	
-		FetchSymbolToBuffer(hdlSubscribing,1,buffer_subscribing);	
-		FetchSymbolToBuffer(hdlPublishing,1,buffer_publishing);
-		FetchSymbolToBuffer(hdlSubscribed,1,buffer_subscribed);
-		FetchSymbolToBuffer(hdlPublished,1,buffer_published);
-		FetchSymbolToBuffer(hdlPublicationCounter, 2, buffer_publicationCounter);
-		FetchSymbolToBuffer(hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
+	protected void Busy() {	
 		
-		if(Convert.ByteArrToBool(buffer_subscribing.getByteArray()) == true
-				&& Convert.ByteArrToBool( buffer_subscribed.getByteArray() ) == false)
+		
+		if(adsSubscribing == true && adsSubscribed == false && subscribingNotificationSignal == true)
 		{
+			subscribingNotificationSignal = false;
 			//Plc wants to subscribe to new topic
 			FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, buffer_subscriptions);
+			FetchSymbolToBuffer(hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
 			
 			currentSubCounter = Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray());
-			System.out.println("[PlcFetcher.Busy] Subscription counter: "+currentSubCounter);
+			System.out.println("[PlcFetcher.Busy] Subscription counter: "+ currentSubCounter);
 			currentSubCounter -= 2;
 			
 				//Extract the topic and subscribe
@@ -197,11 +214,12 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 			}
 		}
 		
-		if(Convert.ByteArrToBool(buffer_publishing.getByteArray() ) == true 
-				&& Convert.ByteArrToBool( buffer_published.getByteArray() ) == false)
+		if(adsPublishing == true && adsPublished == false && publishingNotificationSignal == true)
 		{
+			publishingNotificationSignal = false;
 			//Plc wants to publish a new topic
 			FetchSymbolToBuffer(hdlPublications,sizeOfPublications, buffer_publications);
+			FetchSymbolToBuffer(hdlPublicationCounter, 2, buffer_publicationCounter);
 			
 			currentPubCounter = Convert.ByteArrToShort(buffer_publicationCounter.getByteArray());
 			System.out.println("[PlcFetcher.Busy] Publication counter: "+currentPubCounter);
@@ -226,8 +244,8 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
 			}
 			//Published
-		}	
-	*/
+		}
+	
 	}
 
 	@Override
@@ -264,32 +282,52 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback {
 		// TODO Auto-generated method stub
 		
 	}
-
+	
+	public void onEvent(AmsAddr addr,AdsNotificationHeader notification,long user) {
+    		
+		Long lUser = new Long(user);
+	
+		if(lUser.intValue() == adsSubscribingHandle)
+		{
+			subscribingNotificationSignal = true;
+			adsSubscribing =  Convert.ByteArrToBool(notification.getData());
+			System.out.println("adsSubscribingHandle Value:\t\t" + adsSubscribing);
+			
+			
+		}
+		else if(lUser.intValue() == adsSubscribedHandle)
+		{
+			adsSubscribed =  Convert.ByteArrToBool(notification.getData());
+			System.out.println("adsSubscribedHandle Value:\t\t" + adsSubscribed);
+		}
+		else if(lUser.intValue() == adsPublishingHandle)
+		{
+			publishingNotificationSignal = true;
+			adsPublishing = Convert.ByteArrToBool(notification.getData());
+			System.out.println("adsPublishingHandle Value:\t\t" + adsPublishing);
+			
+				
+		}
+		else if(lUser.intValue() == adsPublishedHandle)
+		{
+			adsPublished = Convert.ByteArrToBool(notification.getData());
+			System.out.println("adsPublishedHandle Value:\t\t" + adsPublished);
+		}
+			
+	}
+		/*
+		else if(lUser.intValue() == adsSubscriptionCounterHandle)
+		{
+			adsSubscriptionCounter = Convert.ByteArrToShort(notification.getData());
+			System.out.println("adsSubscriptionCounterHandle Value:\t\t"+ adsSubscriptionCounter);
+		}
+		else if(lUser.intValue() == adsPublicationCounterHandle)
+		{
+			adsPublicationCounter = Convert.ByteArrToShort(notification.getData());
+			System.out.println("adsPublicationCounterHandle Value:\t\t"+ adsPublicationCounter);
+		}
+		*/
+	
 
 }
 
-class AdsFetcherListener implements CallbackListenerAdsState {
-    private final static long SPAN = 11644473600000L;
-    Date notificationDate;
-    Date currentDate,resultDate;
-    // Callback function
-    public void onEvent(AmsAddr addr,AdsNotificationHeader notification,long user) {
-
-        // The PLC timestamp is coded in Windows FILETIME.
-        // Nano secs since 01.01.1601.
-        long dateInMillis = notification.getNTimeStamp();
-
-        // Date accepts millisecs since 01.01.1970.
-        // Convert to millisecs and substract span.
-        notificationDate = new Date(dateInMillis / 10000 - SPAN);
-
-        System.out.println("Value:\t\t"
-                + Convert.ByteArrToString(notification.getData()));
-        System.out.println("Notification:\t" + notification.getHNotification());
-        System.out.println("Time:\t\t" + notificationDate.toString());
-        System.out.println("User:\t\t" + user);
-        System.out.println("ServerNetID:\t" + addr.getNetIdString() + "\n");
-    }
-    
-    
-}
