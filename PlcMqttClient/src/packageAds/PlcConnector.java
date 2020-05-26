@@ -1,41 +1,51 @@
 package packageAds;
 
+import java.util.Date;
+
+import de.beckhoff.jni.AdsConstants;
 import de.beckhoff.jni.Convert;
 import de.beckhoff.jni.JNIByteBuffer;
+import de.beckhoff.jni.JNILong;
 import de.beckhoff.jni.tcads.AdsCallDllFunction;
+import de.beckhoff.jni.tcads.AdsCallbackObject;
+import de.beckhoff.jni.tcads.AdsNotificationAttrib;
+import de.beckhoff.jni.tcads.AdsNotificationHeader;
 import de.beckhoff.jni.tcads.AmsAddr;
+import de.beckhoff.jni.tcads.CallbackListenerAdsState;
 import packageMqtt.AdsMqttClient;
 import packageSystem.StateMachine;
 
 public class PlcConnector extends StateMachine {
 	
-	PlcFetcher plcFetcher;
-	
-	public PlcFetcher getPlcFetcher() {
-		return plcFetcher;
-	}
 
 	long err;
 	AmsAddr addr;
 	JNIByteBuffer handleBuff,symbolBuff,dataBuff;
+	JNILong notification = new JNILong();
 	
 	int busyStep;
-	AdsMqttClient adsMqttClient;
+	boolean connected;
+	
 	
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
+	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage";
 	
-	public PlcConnector(AdsMqttClient adsMqttClient)
+	public PlcConnector(AmsAddr addr)
 	{
 		super();
-		this.adsMqttClient = adsMqttClient;
-		
+		this.addr = addr;	
 	}
 
+	public boolean isConnected()
+	{
+		
+		return connected;
+	}
+	
 	@Override
 	protected void Init() {
 		
-		addr = new AmsAddr();
-		plcFetcher = new PlcFetcher(addr,adsMqttClient);
+		
 		handleBuff = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		symbolBuff = new JNIByteBuffer(plcConnected.getBytes());
 		dataBuff = new JNIByteBuffer(1);
@@ -43,6 +53,7 @@ public class PlcConnector extends StateMachine {
 		//Open communication
 		AdsCallDllFunction.adsPortOpen();
 		err = AdsCallDllFunction.getLocalAddress(addr);
+		
 		addr.setPort(851);
 		
 		if(err != 0)
@@ -53,6 +64,8 @@ public class PlcConnector extends StateMachine {
 		else
 		{
 			System.out.println("Success: Open communication!");
+			// Specify attributes of the notificationRequest
+            
 		}
 		Start();		
 
@@ -60,7 +73,7 @@ public class PlcConnector extends StateMachine {
 
 	@Override
 	protected void Ready() {
-		// TODO Auto-generated method stub
+		Execute();
 		
 	}
 
@@ -79,16 +92,16 @@ public class PlcConnector extends StateMachine {
 			case 0:
 			
 				err = AdsCallDllFunction
-				.adsSyncReadWriteReq
-				(
-					addr,
-					AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
-					0x0,
-					handleBuff.getUsedBytesCount(),
-                	handleBuff,
-                	symbolBuff.getUsedBytesCount(),
-                	symbolBuff
-				);
+						.adsSyncReadWriteReq
+						(
+							addr,
+							AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
+							0x0,
+							handleBuff.getUsedBytesCount(),
+		                	handleBuff,
+		                	symbolBuff.getUsedBytesCount(),
+		                	symbolBuff
+						);
 		
 				if(err!=0) 
 				{ 
@@ -162,8 +175,35 @@ public class PlcConnector extends StateMachine {
 				
 			//********************************************************************************************************
 			case 10:
-				plcFetcher.CheckStateMachine();
-				plcFetcher.Execute();
+				connected = true;
+				// Specify attributes of the notificationRequest
+	            AdsNotificationAttrib attr = new AdsNotificationAttrib();
+	            attr.setCbLength(Integer.SIZE / Byte.SIZE);
+	            attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
+	            attr.setDwChangeFilter(10000000);   // 1 sec
+	            attr.setNMaxDelay(20000000);        // 2 sec
+
+	            // Create and add listener
+	            AdsListener listener = new AdsListener();
+	            AdsCallbackObject callObject = new AdsCallbackObject();
+	            callObject.addListenerCallbackAdsState(listener);
+
+	            // Create notificationHandle
+	            err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+	                addr,
+	                0x4020,     // IndexGroup
+	                0x0,        // IndexOffset
+	                attr,       // The defined AdsNotificationAttrib object
+	                42,         // Choose arbitrary number
+	                notification);
+	            if(err!=0) { 
+	                System.out.println("Error: Add notification: 0x" 
+	                        + Long.toHexString(err)); 
+	            }
+	            busyStep = 20;
+				break;
+				
+			case 20:
 				break;
 		}
 	
@@ -187,12 +227,37 @@ public class PlcConnector extends StateMachine {
 		{
 		case 10://close connection
 			AdsCallDllFunction.adsPortClose();
+			connected = false;
 			break;
 		case 20://just report
 			break;
 		}
 	}
 	
-	
 
+}
+
+class AdsListener implements CallbackListenerAdsState {
+    private final static long SPAN = 11644473600000L;
+
+    // Callback function
+    public void onEvent(AmsAddr addr,
+                    AdsNotificationHeader notification,
+                    long user) {
+
+        // The PLC timestamp is coded in Windows FILETIME.
+        // Nano secs since 01.01.1601.
+        long dateInMillis = notification.getNTimeStamp();
+
+        // Date accepts millisecs since 01.01.1970.
+        // Convert to millisecs and substract span.
+        Date notificationDate = new Date(dateInMillis / 10000 - SPAN);
+
+        System.out.println("Value:\t\t"
+                + Convert.ByteArrToInt(notification.getData()));
+        System.out.println("Notification:\t" + notification.getHNotification());
+        System.out.println("Time:\t\t" + notificationDate.toString());
+        System.out.println("User:\t\t" + user);
+        System.out.println("ServerNetID:\t" + addr.getNetIdString() + "\n");
+    }
 }

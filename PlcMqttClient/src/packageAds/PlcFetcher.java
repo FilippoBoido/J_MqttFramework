@@ -101,12 +101,6 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	byte[] topicByteArr = new byte[9];
 	byte[] payloadByteArr = new byte[34];
 	
-	private FetcherThread lifePackageFetcher;
-	
-	public FetcherThread getLifePackageFetcher() {
-		return lifePackageFetcher;
-	}
-
 
 	public PlcFetcher(AmsAddr addr,AdsMqttClient adsMqttClient) {
 		super();
@@ -451,7 +445,10 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 				System.out.println("[PlcFetcher.messageArrived] decoded message: " + decodedMessage);
 				System.out.println("[PlcFetcher.messageArrived] Topic found in plc.");
 				locBuffer_subscriptions.setByteArray(buffer, false);
+				long start = System.nanoTime();   	
 				WriteSymbolFromBuffer(locBuffer_subscriptions, hdlSubscriptions, sizeOfSubscriptions);	
+				long elapsedTime = System.nanoTime() - start;
+				System.out.println("[PlcFetcher.messageArrived] ADS-Transfer time: " + elapsedTime);
 				return;
 			}
 		}

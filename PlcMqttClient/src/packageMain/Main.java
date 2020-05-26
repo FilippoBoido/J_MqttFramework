@@ -6,10 +6,13 @@ import java.util.Date;
 import java.util.Random;
 
 import de.beckhoff.jni.JNIByteBuffer;
+import de.beckhoff.jni.tcads.AmsAddr;
 import packageAds.FetcherThread;
 import packageAds.PlcConnector;
+import packageAds.PlcFetcher;
 import packageMqtt.AdsMqttClient;
 import packageSystem.StateMachine;
+import packageSystem.StateMachine.E_StateMachine;
 
 public class Main {
 
@@ -37,24 +40,28 @@ public class Main {
 	    String generatedString = randomAlphaNumeric(8);
 	    System.out.println("Randomly generated client id: " + generatedString);
 		AdsMqttClient adsMqttClient = new AdsMqttClient("tcp://192.168.2.123:1883", generatedString);
-		PlcConnector plcConnector = new PlcConnector(adsMqttClient);
-		
+		AmsAddr addr = new AmsAddr();
+		PlcConnector plcConnector = new PlcConnector(addr);
+		PlcFetcher plcFetcher = new PlcFetcher(addr,adsMqttClient);
 					
 		while(true)
 		{
 			plcConnector.CheckStateMachine();
-			plcConnector.Execute();
-			adsMqttClient.CheckStateMachine();
+			if(plcConnector.isConnected())
+			{
+				adsMqttClient.CheckStateMachine();
+				plcFetcher.CheckStateMachine();
+			}
 			
 			
 			switch(eMainStep)
 			{
 			
 				case INIT:
-					FetcherThread lifePackageFetcher = plcConnector.getPlcFetcher().getLifePackageFetcher();
-					if(lifePackageFetcher != null )
+					
+					if(plcFetcher != null )
 					{
-						if(lifePackageFetcher.isFetching())
+						if(plcFetcher.eStateMachine == E_StateMachine.eBusy)
 						{
 							adsMqttClient.Execute();		
 							eMainStep =E_MainStep.DISPATCH_MQTT_PACKS;
