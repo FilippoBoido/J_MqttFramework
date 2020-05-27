@@ -19,12 +19,20 @@ public class Main {
 
 	public enum E_MainStep {
 	    INIT,
-	    DISPATCH_MQTT_PACKS
+	    START_PLC_CONNECTOR,
+	    EXECUTE_PLC_CONNECTOR,
+	    START_MQTT_CLIENT,
+	    START_PLC_FETCHER,
+	    EXECUTE_MQTT_CLIENT,
+	    EXECUTE_PLC_FETCHER,
+	    DISPATCH_MQTT_PACKS,
+	    DISCONNECT_AND_RELEASE_RESOURCES,
+	    RESTART
 	  }
 
 	
 	public static E_MainStep eMainStep  = E_MainStep.INIT;
-	private static final String ALPHA_NUMERIC_STRING = "0123456789";//"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	
 	public static String randomAlphaNumeric(int count) {
 		StringBuilder builder = new StringBuilder();
@@ -44,39 +52,92 @@ public class Main {
 		AmsAddr addr = new AmsAddr();
 		PlcConnector plcConnector = new PlcConnector(addr);
 		PlcEventDrivenFetcher plcFetcher = new PlcEventDrivenFetcher(addr,adsMqttClient);
-					
+			
+		
 		while(true)
 		{
 			plcConnector.CheckStateMachine();
+			adsMqttClient.CheckStateMachine();
+			plcFetcher.CheckStateMachine();
+			/*
 			if(plcConnector.isConnected())
 			{
-				adsMqttClient.CheckStateMachine();
-				plcFetcher.CheckStateMachine();
+				
 			}
-			
-			
+			*/
+					
 			switch(eMainStep)
 			{
 			
 				case INIT:
 					
-					if(plcFetcher != null )
+					if(plcConnector.isInitialized())
 					{
-						if(plcFetcher.eStateMachine == E_StateMachine.eBusy)
-						{
-							adsMqttClient.Execute();		
-							eMainStep =E_MainStep.DISPATCH_MQTT_PACKS;
-						}
-						
+						plcConnector.Start();
+						eMainStep =E_MainStep.START_PLC_CONNECTOR;
 					}
 					break;
 					
+				case START_PLC_CONNECTOR:
 					
-				case DISPATCH_MQTT_PACKS:
-					if(adsMqttClient.isConnected())
+					if(plcConnector.isReady())
+					{
+						plcConnector.Execute();
+						eMainStep = E_MainStep.EXECUTE_PLC_CONNECTOR;
+					}
+					break;
+					
+				case EXECUTE_PLC_CONNECTOR:
+					
+					if(plcConnector.isBusy() && plcConnector.isConnected())
+					{
+						plcFetcher.Start();
+						eMainStep = E_MainStep.START_PLC_FETCHER;
+						
+					}
+					break;
+								
+				case START_PLC_FETCHER:
+					
+					if(plcFetcher.isReady())
+					{
+						plcFetcher.Execute();
+						eMainStep = E_MainStep.EXECUTE_PLC_FETCHER;
+					}
+					break;
+					
+				case EXECUTE_PLC_FETCHER:
+					
+					if(plcFetcher.isBusy())
+					{
+						adsMqttClient.Start();
+						eMainStep = E_MainStep.START_MQTT_CLIENT;
+					}
+					
+					
+					break;
+					
+				case START_MQTT_CLIENT:	
+					
+					if(adsMqttClient.isReady())
+					{
+						adsMqttClient.Execute();
+						eMainStep = E_MainStep.EXECUTE_MQTT_CLIENT;
+					}
+					break;
+					
+				case EXECUTE_MQTT_CLIENT:
+					
+					if(adsMqttClient.isBusy())
 					{	
-						;	
+						;
 					}	
+					break;	
+					
+				case DISCONNECT_AND_RELEASE_RESOURCES:
+					break;
+					
+				case RESTART:
 					break;
 			
 			}
@@ -86,3 +147,4 @@ public class Main {
 	}
 
 }
+

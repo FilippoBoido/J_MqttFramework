@@ -96,13 +96,12 @@ public class PlcConnector extends StateMachine {
             
 		}
 			
-		Start();		
-
+	
 	}
 
 	@Override
 	protected void Ready() {
-		Execute();
+		
 		
 	}
 

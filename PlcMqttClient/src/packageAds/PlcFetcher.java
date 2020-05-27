@@ -111,6 +111,83 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	@Override
 	protected void Init() {
 		
+		;
+
+	}
+
+	synchronized void FetchSymbolToBuffer(int hdl,int size, JNIByteBuffer buffer)
+	{
+		long err = AdsCallDllFunction
+				   .adsSyncReadReq
+				   (
+					   addr,
+					   AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
+					   hdl,
+					   size,
+					   buffer
+				   );
+				   
+		if(err!=0)
+		{
+			System.out.println("Error: Read by handle: 0x" + Long.toHexString(err));
+		
+			Fault(0);
+		}
+	}
+	
+	int FetchSymbolHdl(JNIByteBuffer handle, JNIByteBuffer symbol)
+	{
+		long err = AdsCallDllFunction
+				.adsSyncReadWriteReq
+				(
+					addr,
+					AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
+					0x0,
+					handle.getUsedBytesCount(),
+					handle,
+					symbol.getUsedBytesCount(),
+					symbol
+				);
+			
+	   if(err!=0) 
+	   { 
+		   System.out.println("Error: Get handle: 0x"+ Long.toHexString(err)); 
+		   Fault(0);
+		   return 0;
+		   
+	   } 
+	   else 
+	   {
+		   System.out.println("Success: Got handle!");
+	   }
+		return Convert.ByteArrToInt(handle.getByteArray());
+	}
+	
+	synchronized void WriteSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size)
+	{
+		// Write value by handle
+		err = AdsCallDllFunction
+				.adsSyncWriteReq
+				(
+					addr,
+	                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
+	                hdl,
+	                size,
+	                buffer
+                );
+		
+		if(err!=0)
+		{
+			System.out.println("Error: Write by handle: 0x" + Long.toHexString(err));
+			Fault(0);
+			return;
+		}
+	}
+	
+	
+	@Override
+	protected void Ready() {
+
 		handle_subscriptions = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		handle_publications = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		handle_publicationCounter  = new JNIByteBuffer(Integer.SIZE/Byte.SIZE);
@@ -200,85 +277,6 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		
 		//Set callback for incoming messages
 		adsMqttClient.getMqttClient().setCallback(this);
-		
-		
-		Start(); 
-
-	}
-
-	synchronized void FetchSymbolToBuffer(int hdl,int size, JNIByteBuffer buffer)
-	{
-		long err = AdsCallDllFunction
-				   .adsSyncReadReq
-				   (
-					   addr,
-					   AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-					   hdl,
-					   size,
-					   buffer
-				   );
-				   
-		if(err!=0)
-		{
-			System.out.println("Error: Read by handle: 0x" + Long.toHexString(err));
-		
-			Fault(0);
-		}
-	}
-	
-	int FetchSymbolHdl(JNIByteBuffer handle, JNIByteBuffer symbol)
-	{
-		long err = AdsCallDllFunction
-				.adsSyncReadWriteReq
-				(
-					addr,
-					AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
-					0x0,
-					handle.getUsedBytesCount(),
-					handle,
-					symbol.getUsedBytesCount(),
-					symbol
-				);
-			
-	   if(err!=0) 
-	   { 
-		   System.out.println("Error: Get handle: 0x"+ Long.toHexString(err)); 
-		   Fault(0);
-		   return 0;
-		   
-	   } 
-	   else 
-	   {
-		   System.out.println("Success: Got handle!");
-	   }
-		return Convert.ByteArrToInt(handle.getByteArray());
-	}
-	
-	synchronized void WriteSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size)
-	{
-		// Write value by handle
-		err = AdsCallDllFunction
-				.adsSyncWriteReq
-				(
-					addr,
-	                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-	                hdl,
-	                size,
-	                buffer
-                );
-		
-		if(err!=0)
-		{
-			System.out.println("Error: Write by handle: 0x" + Long.toHexString(err));
-			Fault(0);
-			return;
-		}
-	}
-	
-	
-	@Override
-	protected void Ready() {
-		Execute();
 		
 	}
 

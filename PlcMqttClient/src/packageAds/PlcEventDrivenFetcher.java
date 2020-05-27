@@ -57,6 +57,12 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 		
 		super.Init();
 		
+	}
+	
+	@Override
+	protected void Ready() {
+		super.Ready();
+		
 		adsSubscribingHandle = Convert.ByteArrToInt(handle_subscribing.getByteArray());
     	adsSubscribedHandle = Convert.ByteArrToInt(handle_subscribed.getByteArray());
     	adsPublishingHandle = Convert.ByteArrToInt(handle_publishing.getByteArray());
@@ -165,12 +171,6 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 		            + Long.toHexString(err)); 
 		}
 		*/
-	}
-	
-	@Override
-	protected void Ready() {
-		super.Ready();
-		
 	}
 
 	@Override

@@ -13,7 +13,7 @@ public abstract class StateMachine {
 	  }
 	
 	
-	private boolean bFirstCall = true;
+	private boolean bFirstCall = true, bInitialized = false;
 	protected int errorType;
 	public E_StateMachine eStateMachine;
 	
@@ -64,6 +64,8 @@ public abstract class StateMachine {
 		{
 			case eInit: 
 				Init();
+				bInitialized = true;
+				eStateMachine = E_StateMachine.eWaiting;
 				break;
 				
 			case eReady:
@@ -105,6 +107,46 @@ public abstract class StateMachine {
 	protected abstract void Error();
 	
 	
+	public boolean isInit()
+	{
+		return (E_StateMachine.eInit == eStateMachine);
+	}
+	
+	public boolean isReady()
+	{
+		return (E_StateMachine.eReady == eStateMachine);
+	}
+	
+	public boolean isBusy()
+	{
+		return (E_StateMachine.eBusy == eStateMachine);
+	}
+	
+	public boolean isError()
+	{
+		return (E_StateMachine.eError == eStateMachine);
+	}
+	
+	public boolean isPreparing()
+	{
+		return (E_StateMachine.ePrepare == eStateMachine);
+	}
+	
+	public boolean isIdle()
+	{
+		return (E_StateMachine.eIdle == eStateMachine);
+	}
+	
+	public boolean isInitialized()
+	{
+		return bInitialized;
+	}
+	
+	public boolean isWaiting()
+	{
+		return (E_StateMachine.eWaiting == eStateMachine);
+	}
+	
 	//Cmds
 	protected boolean Boot()
 	{
@@ -118,7 +160,7 @@ public abstract class StateMachine {
 		return false;
 	}
 	
-	protected boolean Done()
+	public boolean Done()
 	{
 		if(eStateMachine == E_StateMachine.eBusy)
 		{
@@ -142,7 +184,8 @@ public abstract class StateMachine {
 	
 	public boolean Execute()
 	{
-		if(eStateMachine == E_StateMachine.eReady)
+		if(eStateMachine == E_StateMachine.eReady
+				|| eStateMachine == E_StateMachine.eWaiting)
 		{
 			ChangeState(E_StateMachine.ePrepare);
 			return true;
@@ -176,9 +219,10 @@ public abstract class StateMachine {
 		return false;
 	}
 	
-	protected boolean Start()
+	public boolean Start()
 	{
-		if(eStateMachine == E_StateMachine.eInit)
+		if(eStateMachine == E_StateMachine.eInit
+				|| eStateMachine == E_StateMachine.eWaiting)
 		{
 			ChangeState(E_StateMachine.eReady);
 			return true;
@@ -187,7 +231,7 @@ public abstract class StateMachine {
 		return false;
 	}
 	
-	protected boolean Wait()
+	public boolean Wait()
 	{
 		if(eStateMachine == E_StateMachine.eBusy)
 		{
