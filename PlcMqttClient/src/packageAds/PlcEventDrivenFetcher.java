@@ -1,5 +1,7 @@
 package packageAds;
 
+import java.io.UnsupportedEncodingException;
+
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -14,6 +16,7 @@ import de.beckhoff.jni.tcads.AdsNotificationAttrib;
 import de.beckhoff.jni.tcads.AdsNotificationHeader;
 import de.beckhoff.jni.tcads.AmsAddr;
 import de.beckhoff.jni.tcads.CallbackListenerAdsState;
+import packageExceptions.AdsConnectionException;
 import packageMqtt.AdsMqttClient;
 
 
@@ -53,92 +56,111 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 	}
 
 	@Override
-	protected void Init() {
+	protected void init() {
 		
-		super.Init();
-		
-	}
-	
-	@Override
-	protected void Ready() {
-		super.Ready();
-		
-		adsSubscribingHandle = Convert.ByteArrToInt(handle_subscribing.getByteArray());
-    	adsSubscribedHandle = Convert.ByteArrToInt(handle_subscribed.getByteArray());
-    	adsPublishingHandle = Convert.ByteArrToInt(handle_publishing.getByteArray());
-    	adsPublishedHandle = Convert.ByteArrToInt(handle_published.getByteArray());
-    	adsSubscriptionCounterHandle = Convert.ByteArrToInt(handle_subscriptionCounter.getByteArray());
-    	adsPublicationCounterHandle = Convert.ByteArrToInt(handle_publicationCounter.getByteArray());
-		
-    	subscribingNotification = new JNILong(adsSubscribingHandle);
-		subscribedNotification = new JNILong(adsSubscribedHandle);
-		publishingNotification = new JNILong(adsPublishingHandle);
-		publishedNotification = new JNILong(adsPublishedHandle);
-		subscriptionCounterNotification = new JNILong(adsSubscriptionCounterHandle);
-		publicationCounterNotification = new JNILong(adsPublicationCounterHandle);
-    	
+		super.init();
+			
 		attr.setCbLength(1);
 	    attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
 	    attr.setDwChangeFilter(10000000);   // 1 sec
 	    attr.setNMaxDelay(20000000);        // 2 sec
-	    
-	    callObject.addListenerCallbackAdsState(this);
 		
-		// Create notificationHandle
-		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		        addr,
-		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		        adsSubscribingHandle,        	// IndexOffset
-		        attr,       		// The defined AdsNotificationAttrib object
-		        adsSubscribingHandle,         	// Choose arbitrary number
-		        subscribingNotification);
-		
-		if(err!=0) { 
-		    System.out.println("Error: Add notification: 0x" 
-		            + Long.toHexString(err)); 
+	}
+	
+	@Override
+	protected void ready() throws AdsConnectionException {
+		switch(readyStep)
+		{
+		case 00:
+				
+			super.ready();
+			
+			adsSubscribingHandle = Convert.ByteArrToInt(handle_subscribing.getByteArray());
+	    	adsSubscribedHandle = Convert.ByteArrToInt(handle_subscribed.getByteArray());
+	    	adsPublishingHandle = Convert.ByteArrToInt(handle_publishing.getByteArray());
+	    	adsPublishedHandle = Convert.ByteArrToInt(handle_published.getByteArray());
+	    	adsSubscriptionCounterHandle = Convert.ByteArrToInt(handle_subscriptionCounter.getByteArray());
+	    	adsPublicationCounterHandle = Convert.ByteArrToInt(handle_publicationCounter.getByteArray());
+			
+	    	subscribingNotification = new JNILong(adsSubscribingHandle);
+			subscribedNotification = new JNILong(adsSubscribedHandle);
+			publishingNotification = new JNILong(adsPublishingHandle);
+			publishedNotification = new JNILong(adsPublishedHandle);
+			subscriptionCounterNotification = new JNILong(adsSubscriptionCounterHandle);
+			publicationCounterNotification = new JNILong(adsPublicationCounterHandle);	
+			
+		    callObject.addListenerCallbackAdsState(this);
+			
+			// Create notificationHandle
+			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+			        addr,
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+			        adsSubscribingHandle,        	// IndexOffset
+			        attr,       		// The defined AdsNotificationAttrib object
+			        adsSubscribingHandle,         	// Choose arbitrary number
+			        subscribingNotification);
+			
+			if(err!=0) { 
+				
+				exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
+				throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			    
+			}
+			
+			// Create notificationHandle
+			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+			        addr,
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+			        adsSubscribedHandle,        	// IndexOffset
+			        attr,       		// The defined AdsNotificationAttrib object
+			        adsSubscribedHandle,         	// Choose arbitrary number
+			        subscribedNotification);
+			
+			if(err!=0) { 
+			   
+			    exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
+			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			}
+			
+			// Create notificationHandle
+			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+			        addr,
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+			        adsPublishingHandle,        	// IndexOffset
+			        attr,       		// The defined AdsNotificationAttrib object
+			        adsPublishingHandle,         	// Choose arbitrary number
+			        publishingNotification);
+			
+			if(err!=0) { 
+				
+				exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
+			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			}
+			
+			// Create notificationHandle
+			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+			        addr,
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+			        adsPublishedHandle,        	// IndexOffset
+			        attr,       		// The defined AdsNotificationAttrib object
+			        adsPublishedHandle,         	// Choose arbitrary number
+			        publishedNotification);
+			
+			if(err!=0) { 
+				
+				exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
+			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			}
+			
+			bReadyOk = true;
+			readyStep = 10;
+			break;
+				
+		case 10:
+			break;
+				
 		}
 		
-		// Create notificationHandle
-		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		        addr,
-		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		        adsSubscribedHandle,        	// IndexOffset
-		        attr,       		// The defined AdsNotificationAttrib object
-		        adsSubscribedHandle,         	// Choose arbitrary number
-		        subscribedNotification);
-		
-		if(err!=0) { 
-		    System.out.println("Error: Add notification: 0x" 
-		            + Long.toHexString(err)); 
-		}
-		
-		// Create notificationHandle
-		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		        addr,
-		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		        adsPublishingHandle,        	// IndexOffset
-		        attr,       		// The defined AdsNotificationAttrib object
-		        adsPublishingHandle,         	// Choose arbitrary number
-		        publishingNotification);
-		
-		if(err!=0) { 
-		    System.out.println("Error: Add notification: 0x" 
-		            + Long.toHexString(err)); 
-		}
-		
-		// Create notificationHandle
-		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		        addr,
-		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		        adsPublishedHandle,        	// IndexOffset
-		        attr,       		// The defined AdsNotificationAttrib object
-		        adsPublishedHandle,         	// Choose arbitrary number
-		        publishedNotification);
-		
-		if(err!=0) { 
-		    System.out.println("Error: Add notification: 0x" 
-		            + Long.toHexString(err)); 
-		}
 		/*
 		//change size to 2 bytes for the subscription and publication counter
 		attr.setCbLength(2);
@@ -174,13 +196,13 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 	}
 
 	@Override
-	protected void Prepare() {
+	protected void prepare() {
 		// TODO Auto-generated method stub
 		
 	}
 	
 	@Override
-	protected void Busy() {	
+	protected void busy() throws AdsConnectionException , UnsupportedEncodingException{	
 		
 		
 		if(adsSubscribing == true && adsSubscribed == false && subscribingNotificationSignal == true)
@@ -244,31 +266,113 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
 			}
 			//Published
+			
+			
 		}
+		
+		if(!adsMessageList.isEmpty())
+		{
+			AdsMessage adsMessage = adsMessageList.remove(0);
+			//Search the topic in the list of subscriptions
+			byte[] locTopicByteArr = new byte[9];
+			byte[] locPayloadByteArr = new byte[34];
+			byte[] buffer;
+			String locTopic;
+			JNIByteBuffer locBuffer_subscriptions = new JNIByteBuffer(sizeOfSubscriptions);
+			JNIByteBuffer locBuffer_subscriptionCounter = new JNIByteBuffer(2);
+			
+			FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, locBuffer_subscriptions);
+			FetchSymbolToBuffer(hdlSubscriptionCounter, 2, locBuffer_subscriptionCounter);
+			
+			short currentSubCounter = Convert.ByteArrToShort(locBuffer_subscriptionCounter.getByteArray());
+			System.out.println("[PlcFetcher.messageArrived] Topic: " + adsMessage.getTopic());
+			
+			currentSubCounter -= 1;	
+			int loops = currentSubCounter;
+			System.out.println("[PlcFetcher.messageArrived] Calculated loops: " + loops);
+			//currentSubCounter -= 1;
+			int shell = currentSubCounter * sizeOfAdsShell;
+			System.out.println("[PlcFetcher.messageArrived] Size of current subscription memory: " + shell);
+			
+			for(int i = 0; i < (loops * sizeOfAdsShell); i = i + sizeOfAdsShell)
+			{
+				System.out.println("[PlcFetcher.messageArrived] Size of current subscription offset: " + i);
+				for(int k = 0 ; k < 9 ; k++)
+				{
+					locTopicByteArr[k] = locBuffer_subscriptions.getByteArray()[i+(k+1)];
+					if(locTopicByteArr[k] == 0)
+						break;
+				}
+				locTopic = Convert.ByteArrToString(locTopicByteArr);
+				locTopic = locTopic.trim();
+				//topic = topic.trim();
+				
+				if( locTopic.equals(adsMessage.getTopic()) == true )
+				{
+					//System.out.println("[PlcFetcher.messageArrived] Topics equal.");
+					//topic found
+					//write back into plc
+					//locBuffer_subscriptions.setByteArray(message.getPayload());
+					buffer = locBuffer_subscriptions.getByteArray();
+					//bNewMessage must be set to true
+					buffer[i] = 1;
+					
+					for(int j = 0 ; j < adsMessage.getMessage().getPayload().length ; j++)
+					{
+						
+						locPayloadByteArr[j] = adsMessage.getMessage().getPayload()[j];
+						buffer[(i)+12+j] = locPayloadByteArr[j];
+					}
+					
+					String decodedMessage = new String(locPayloadByteArr, "UTF-8");
+					System.out.println("[PlcFetcher.messageArrived] decoded message: " + decodedMessage);
+					System.out.println("[PlcFetcher.messageArrived] Topic found in plc.");
+					locBuffer_subscriptions.setByteArray(buffer, false);
+					long start = System.nanoTime();   	
+					WriteSymbolFromBuffer(locBuffer_subscriptions, hdlSubscriptions, sizeOfSubscriptions);	
+					long elapsedTime = System.nanoTime() - start;
+					System.out.println("[PlcFetcher.messageArrived] ADS-Transfer time: " + elapsedTime);
+					return;
+				}
+			}
+		}
+		
+		bBusyOk = true;
 	
 	}
 
 	@Override
-	protected void Idle() {
+	protected void idle() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Waiting() {
+	protected void waiting() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Error() {
-		
+	protected void error() {
+		super.error();
+		switch(errorStep)
+		{
+		case 00:
+			callObject.removeListenerCallbackAdsState(this);
+			bErrorOk = true;
+			errorStep = 10;
+			break;
+			
+		case 10:
+			break;
+		}
 		
 	}
 		
 	@Override
 	public void connectionLost(Throwable cause) {
-		// TODO Auto-generated method stub
+		super.connectionLost(cause);
 		
 	}
 
@@ -279,7 +383,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 
 	@Override
 	public void deliveryComplete(IMqttDeliveryToken token) {
-		// TODO Auto-generated method stub
+		super.deliveryComplete(token);
 		
 	}
 	

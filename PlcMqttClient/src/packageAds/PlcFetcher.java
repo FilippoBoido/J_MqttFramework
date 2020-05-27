@@ -1,21 +1,21 @@
 package packageAds;
 
 import de.beckhoff.jni.tcads.AmsAddr;
+import packageExceptions.AdsConnectionException;
 import packageMqtt.AdsMqttClient;
 import packageSystem.StateMachine;
 import de.beckhoff.jni.Convert;
 import de.beckhoff.jni.JNIByteBuffer;
-import de.beckhoff.jni.tcads.AmsAddr;
 import de.beckhoff.jni.tcads.AdsCallDllFunction;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Date;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.io.UnsupportedEncodingException;
 import java.lang.Integer;
+import java.util.ArrayList;
+
 
 public class PlcFetcher extends StateMachine implements MqttCallback {
 	
@@ -101,6 +101,7 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	byte[] topicByteArr = new byte[9];
 	byte[] payloadByteArr = new byte[34];
 	
+	ArrayList<AdsMessage> adsMessageList = new ArrayList<AdsMessage> ();
 
 	public PlcFetcher(AmsAddr addr,AdsMqttClient adsMqttClient) {
 		super();
@@ -109,85 +110,8 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	}
 	
 	@Override
-	protected void Init() {
+	protected void init() {
 		
-		;
-
-	}
-
-	synchronized void FetchSymbolToBuffer(int hdl,int size, JNIByteBuffer buffer)
-	{
-		long err = AdsCallDllFunction
-				   .adsSyncReadReq
-				   (
-					   addr,
-					   AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-					   hdl,
-					   size,
-					   buffer
-				   );
-				   
-		if(err!=0)
-		{
-			System.out.println("Error: Read by handle: 0x" + Long.toHexString(err));
-		
-			Fault(0);
-		}
-	}
-	
-	int FetchSymbolHdl(JNIByteBuffer handle, JNIByteBuffer symbol)
-	{
-		long err = AdsCallDllFunction
-				.adsSyncReadWriteReq
-				(
-					addr,
-					AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
-					0x0,
-					handle.getUsedBytesCount(),
-					handle,
-					symbol.getUsedBytesCount(),
-					symbol
-				);
-			
-	   if(err!=0) 
-	   { 
-		   System.out.println("Error: Get handle: 0x"+ Long.toHexString(err)); 
-		   Fault(0);
-		   return 0;
-		   
-	   } 
-	   else 
-	   {
-		   System.out.println("Success: Got handle!");
-	   }
-		return Convert.ByteArrToInt(handle.getByteArray());
-	}
-	
-	synchronized void WriteSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size)
-	{
-		// Write value by handle
-		err = AdsCallDllFunction
-				.adsSyncWriteReq
-				(
-					addr,
-	                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-	                hdl,
-	                size,
-	                buffer
-                );
-		
-		if(err!=0)
-		{
-			System.out.println("Error: Write by handle: 0x" + Long.toHexString(err));
-			Fault(0);
-			return;
-		}
-	}
-	
-	
-	@Override
-	protected void Ready() {
-
 		handle_subscriptions = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		handle_publications = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		handle_publicationCounter  = new JNIByteBuffer(Integer.SIZE/Byte.SIZE);
@@ -211,6 +135,79 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		symbol_published = new JNIByteBuffer(mqttPublished.getBytes());
 		symbol_publishing = new JNIByteBuffer(mqttPublishing.getBytes());
 		symbol_sizeOfAdsShell = new JNIByteBuffer(mqttSizeOfAdsShell.getBytes());
+
+	}
+
+	synchronized void FetchSymbolToBuffer(int hdl,int size, JNIByteBuffer buffer) throws AdsConnectionException
+	{
+		long err = AdsCallDllFunction
+				   .adsSyncReadReq
+				   (
+					   addr,
+					   AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
+					   hdl,
+					   size,
+					   buffer
+				   );
+				   
+		if(err!=0)
+		{
+			exceptionMessage = "Error: Read by handle: 0x" + Long.toHexString(err);
+			throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+		}
+	}
+	
+	int FetchSymbolHdl(JNIByteBuffer handle, JNIByteBuffer symbol) throws AdsConnectionException
+	{
+		long err = AdsCallDllFunction
+				.adsSyncReadWriteReq
+				(
+					addr,
+					AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
+					0x0,
+					handle.getUsedBytesCount(),
+					handle,
+					symbol.getUsedBytesCount(),
+					symbol
+				);
+			
+	   if(err!=0) 
+	   { 
+		   
+		   exceptionMessage = "Error: Get handle: 0x"+ Long.toHexString(err);
+		   throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+		   
+	   } 
+	   else 
+	   {
+		   System.out.println("Success: Got handle!");
+	   }
+	   return Convert.ByteArrToInt(handle.getByteArray());
+	}
+	
+	synchronized void WriteSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size) throws AdsConnectionException
+	{
+		// Write value by handle
+		err = AdsCallDllFunction
+				.adsSyncWriteReq
+				(
+					addr,
+	                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
+	                hdl,
+	                size,
+	                buffer
+                );
+		
+		if(err!=0)
+		{
+			exceptionMessage = "Error: Write by handle: 0x" + Long.toHexString(err);
+			throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+		}
+	}
+	
+	
+	@Override
+	protected void ready() throws AdsConnectionException {
 		
 		hdlSizeOfSubscriptions = FetchSymbolHdl(handle_sizeOfSubscriptions,symbol_sizeOfSubscriptions);
 		hdlSizeOfPublications = FetchSymbolHdl(handle_sizeOfPublications,symbol_sizeOfPublications);
@@ -218,14 +215,9 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		FetchSymbolToBuffer(hdlSizeOfSubscriptions, 2, buffer_sizeOfSubscriptions);
 		FetchSymbolToBuffer(hdlSizeOfPublications, 2, buffer_sizeOfPublications);
 
-		if(eStateMachine==E_StateMachine.eError)
-		{
-			System.out.println("[PlcFetcher] Error occured while fetching core data part 1.");
-			return;		
-		}
-		
 		sizeOfSubscriptions = Convert.ByteArrToShort(buffer_sizeOfSubscriptions.getByteArray());
 		sizeOfPublications = Convert.ByteArrToShort(buffer_sizeOfPublications.getByteArray());
+		
 		buffer_subscriptions = new JNIByteBuffer(sizeOfSubscriptions);
 		buffer_publications = new JNIByteBuffer(sizeOfPublications);
 		
@@ -240,6 +232,7 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		
 		buffer_publicationCounter = new JNIByteBuffer(2);
 		buffer_subscriptionCounter = new JNIByteBuffer(2);
+		
 		FetchSymbolToBuffer(hdlPublicationCounter, 2, buffer_publicationCounter);
 		FetchSymbolToBuffer(hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
 		
@@ -262,119 +255,41 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		FetchSymbolToBuffer(hdlSizeOfAdsShell,2,buffer_sizeOfAdsShell);
 		sizeOfAdsShell = Convert.ByteArrToShort(buffer_sizeOfAdsShell.getByteArray());
 		
-		if(eStateMachine==E_StateMachine.eError)
-		{
-			System.out.println("[PlcFetcher] Error occured while fetching core data part 2.");
-			return;		
-		}
-		
-		
 		//Debug 
 		System.out.println("Size of subscriptions: " + sizeOfSubscriptions);
 		System.out.println("Size of publications: "+ sizeOfPublications);
 		System.out.println("Publication counter: "+Convert.ByteArrToShort(buffer_publicationCounter.getByteArray()));
 		System.out.println("Subscription counter: "+Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray()));
 		
-		//Set callback for incoming messages
-		adsMqttClient.getMqttClient().setCallback(this);
-		
 	}
 
 	
 	
 	@Override
-	protected void Prepare() {
+	protected void prepare() {
 		// TODO Auto-generated method stub
 		
 	}
 	
 	@Override
-	protected void Busy() {
-		
-		FetchSymbolToBuffer(hdlSubscribing,1,buffer_subscribing);	
-		FetchSymbolToBuffer(hdlPublishing,1,buffer_publishing);
-		FetchSymbolToBuffer(hdlSubscribed,1,buffer_subscribed);
-		FetchSymbolToBuffer(hdlPublished,1,buffer_published);
-		FetchSymbolToBuffer(hdlPublicationCounter, 2, buffer_publicationCounter);
-		FetchSymbolToBuffer(hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
-		
-		if(Convert.ByteArrToBool(buffer_subscribing.getByteArray()) == true
-				&& Convert.ByteArrToBool( buffer_subscribed.getByteArray() ) == false)
-		{
-			//Plc wants to subscribe to new topic
-			FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, buffer_subscriptions);
-			
-			currentSubCounter = Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray());
-			System.out.println("[PlcFetcher.Busy] Subscription counter: "+currentSubCounter);
-			currentSubCounter -= 2;
-			
-				//Extract the topic and subscribe
-			shell = currentSubCounter * sizeOfAdsShell;
-			
-			for(int i = 0 ; i < 9 ; i++)
-			{
-				topicByteArr[i] = buffer_subscriptions.getByteArray()[shell+(i+1)];
-				if(topicByteArr[i] == 0)
-					break;
-			}
-			
-			
-			String topic = Convert.ByteArrToString(topicByteArr);
-			if(adsMqttClient.Subscribe(topic))
-			{
-				//subscribed
-				System.out.println("[PlcFetcher.Busy] Subscribed to topic: " + topic);
-				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlSubscribed, 1);	
-			}
-		}
-		
-		if(Convert.ByteArrToBool(buffer_publishing.getByteArray() ) == true 
-				&& Convert.ByteArrToBool( buffer_published.getByteArray() ) == false)
-		{
-			//Plc wants to publish a new topic
-			FetchSymbolToBuffer(hdlPublications,sizeOfPublications, buffer_publications);
-			
-			currentPubCounter = Convert.ByteArrToShort(buffer_publicationCounter.getByteArray());
-			System.out.println("[PlcFetcher.Busy] Publication counter: "+currentPubCounter);
-			currentPubCounter -= 2;
-			
-			shell = currentPubCounter * sizeOfAdsShell;
-			
-			for(int i = 0 ; i < 9 ; i++)
-			{
-				topicByteArr[i] = buffer_publications.getByteArray()[shell+(i+1)];
-				if(topicByteArr[i] == 0)
-					break;
-			}
-			for(int i = 0 ; i < 34 ; i++)
-			{
-				payloadByteArr[i] = buffer_publications.getByteArray()[shell+(i+10)];
-			}
-			
-			if(adsMqttClient.Publish(Convert.ByteArrToString(topicByteArr),payloadByteArr))
-			{
-				
-				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
-			}
-			//Published
-		}	
+	protected void busy() throws AdsConnectionException, UnsupportedEncodingException {
 
 	}
 
 	@Override
-	protected void Idle() {
+	protected void idle() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Waiting() {
+	protected void waiting() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Error() {
+	protected void error() {
 		
 		
 	}
@@ -389,67 +304,9 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 
 	@Override
 	public void messageArrived(String topic, MqttMessage message) throws Exception {
-		//Search the topic in the list of subscriptions
-		byte[] locTopicByteArr = new byte[9];
-		byte[] locPayloadByteArr = new byte[34];
-		byte[] buffer;
-		String locTopic;
-		JNIByteBuffer locBuffer_subscriptions = new JNIByteBuffer(sizeOfSubscriptions);
-		JNIByteBuffer locBuffer_subscriptionCounter = new JNIByteBuffer(2);
 		
-		FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, locBuffer_subscriptions);
-		FetchSymbolToBuffer(hdlSubscriptionCounter, 2, locBuffer_subscriptionCounter);
+		adsMessageList.add(new AdsMessage(topic,message));
 		
-		short currentSubCounter = Convert.ByteArrToShort(locBuffer_subscriptionCounter.getByteArray());
-		System.out.println("[PlcFetcher.messageArrived] Topic: " + topic);
-		
-		currentSubCounter -= 1;	
-		int loops = currentSubCounter;
-		System.out.println("[PlcFetcher.messageArrived] Calculated loops: " + loops);
-		//currentSubCounter -= 1;
-		int shell = currentSubCounter * sizeOfAdsShell;
-		System.out.println("[PlcFetcher.messageArrived] Size of current subscription memory: " + shell);
-		
-		for(int i = 0; i < (loops * sizeOfAdsShell); i = i + sizeOfAdsShell)
-		{
-			System.out.println("[PlcFetcher.messageArrived] Size of current subscription offset: " + i);
-			for(int k = 0 ; k < 9 ; k++)
-			{
-				locTopicByteArr[k] = locBuffer_subscriptions.getByteArray()[i+(k+1)];
-				if(locTopicByteArr[k] == 0)
-					break;
-			}
-			locTopic = Convert.ByteArrToString(locTopicByteArr);
-			locTopic = locTopic.trim();
-			topic = topic.trim();
-			
-			if( locTopic.equals(topic) == true )
-			{
-				//System.out.println("[PlcFetcher.messageArrived] Topics equal.");
-				//topic found
-				//write back into plc
-				//locBuffer_subscriptions.setByteArray(message.getPayload());
-				buffer = locBuffer_subscriptions.getByteArray();
-				//bNewMessage must be set to true
-				buffer[i] = 1;
-				
-				for(int j = 0 ; j < message.getPayload().length ; j++)
-				{
-					
-					locPayloadByteArr[j] = message.getPayload()[j];
-					buffer[(i)+12+j] = locPayloadByteArr[j];
-				}
-				String decodedMessage = new String(locPayloadByteArr, "UTF-8");
-				System.out.println("[PlcFetcher.messageArrived] decoded message: " + decodedMessage);
-				System.out.println("[PlcFetcher.messageArrived] Topic found in plc.");
-				locBuffer_subscriptions.setByteArray(buffer, false);
-				long start = System.nanoTime();   	
-				WriteSymbolFromBuffer(locBuffer_subscriptions, hdlSubscriptions, sizeOfSubscriptions);	
-				long elapsedTime = System.nanoTime() - start;
-				System.out.println("[PlcFetcher.messageArrived] ADS-Transfer time: " + elapsedTime);
-				return;
-			}
-		}
 	}
 
 

@@ -12,14 +12,15 @@ import de.beckhoff.jni.tcads.AdsNotificationAttrib;
 import de.beckhoff.jni.tcads.AdsNotificationHeader;
 import de.beckhoff.jni.tcads.AmsAddr;
 import de.beckhoff.jni.tcads.CallbackListenerAdsState;
-
+import packageExceptions.AdsConnectionException;
 import packageSystem.StateMachine;
 
-public class PlcConnector extends StateMachine {
+public class PlcConnector extends StateMachine  {
 	
 
 	long err;
 	int hdlLifePkgBuffToInt;
+	
 	AmsAddr addr;
 	JNIByteBuffer 	handleBuff,
 					symbolBuff,
@@ -33,7 +34,7 @@ public class PlcConnector extends StateMachine {
 	
 	JNILong lifePkgNotification; 
 	
-	int busyStep;
+	
 	boolean connected;
 	String symbol;
 	
@@ -54,13 +55,12 @@ public class PlcConnector extends StateMachine {
 	}
 
 	public boolean isConnected()
-	{
-		
+	{		
 		return connected;
 	}
 	
 	@Override
-	protected void Init() {
+	protected void init() {
 		
 		attr.setCbLength(81);
 	    attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
@@ -77,227 +77,229 @@ public class PlcConnector extends StateMachine {
 		
 		testHandle = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		testSymBuf = new JNIByteBuffer(test.getBytes());
-		testDataBuf = new JNIByteBuffer(1);
-		//Open communication
-		AdsCallDllFunction.adsPortOpen();
-		
-		err = AdsCallDllFunction.getLocalAddress(addr);
-		addr.setPort(851);
-		
-		if(err != 0)
-		{
-			System.out.println("Error: Open communication: 0x" + Long.toHexString(err));
-			return;
-		}
-		else
-		{
-			System.out.println("Success: Open communication!");
-			// Specify attributes of the notificationRequest
-            
-		}
-			
+		testDataBuf = new JNIByteBuffer(1);		
 	
 	}
 
 	@Override
-	protected void Ready() {
+	protected void ready() throws AdsConnectionException {
 		
+		//Open communication
+		switch(readyStep)
+		{
+		case 00:
+			AdsCallDllFunction.adsPortOpen();
+			
+			err = AdsCallDllFunction.getLocalAddress(addr);
+			addr.setPort(851);
+			
+			if(err != 0)
+			{
+				exceptionMessage = "Error opening ADS communication: 0x" + Long.toHexString(err);
+				//System.out.println(exceptionMessage); 
+				throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());			
+			}
+			
+			
+			System.out.println("Success: ADS communication opened.");        
+			readyStep = 10;
+			bReadyOk = true;
+		
+		case 10:
+			
+		}
 		
 	}
 
 	@Override
-	protected void Prepare() {
+	protected void prepare() {
 		// TODO Auto-generated method stub
 		
 	}
 
+	
 	@Override
-	protected void Busy() {
+	protected void busy() throws AdsConnectionException{
 		
 		switch(busyStep)
 		{
-			//********************************************************************************************************
-			case 0:
+		//********************************************************************************************************
+		case 0:
+		
+			//Get Handle for cbConnected.bValue
+			err = AdsCallDllFunction
+					.adsSyncReadWriteReq
+					(
+						addr,
+						AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
+						0x0,
+						handleBuff.getUsedBytesCount(),
+	                	handleBuff,
+	                	symbolBuff.getUsedBytesCount(),
+	                	symbolBuff
+					);
+	
+			if(err!=0) 
+			{ 
+				exceptionMessage = "Error getting handle for " + plcConnected + " : 0x" + Long.toHexString(err);
+			    //System.out.println(exceptionMessage); 
+			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());				   
+			} 
+			else 
+			{
+				symbol = new String(symbolBuff.getByteArray());
+			    System.out.println("Success: Got handle for " + symbol);
+			}
 			
-				//Get Handle for cbConnected.bValue
-				err = AdsCallDllFunction
-						.adsSyncReadWriteReq
-						(
-							addr,
-							AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
-							0x0,
-							handleBuff.getUsedBytesCount(),
-		                	handleBuff,
-		                	symbolBuff.getUsedBytesCount(),
-		                	symbolBuff
-						);
-		
-				if(err!=0) 
-				{ 
-				    System.out.println("Error: Get handle: 0x" + Long.toHexString(err)); 
-				    
-				    Fault(10);
-				    return;
-				} 
-				else 
+			//Get Handle for lifePkg
+			err = AdsCallDllFunction
+					.adsSyncReadWriteReq
+					(
+						addr,
+						AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
+						0x0,
+						lifePkgHandle.getUsedBytesCount(),
+						lifePkgHandle,
+						lifePkgSymBuf.getUsedBytesCount(),
+						lifePkgSymBuf
+					);
+	
+			if(err!=0) 
+			{ 
+				exceptionMessage = "Error getting handle for " + lifePackage + " : 0x" + Long.toHexString(err);
+			    //System.out.println(exceptionMessage); 
+			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			} 
+			else 
+			{
+				symbol = new String(lifePkgSymBuf.getByteArray());
+			    System.out.println("Success: Got handle for " + symbol);
+			}
+			
+			hdlLifePkgBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
+			lifePkgNotification = new JNILong(hdlLifePkgBuffToInt);
+			listener = new AdsConnectorListener(hdlLifePkgBuffToInt);
+			callObject.addListenerCallbackAdsState(listener);
+			// Create notificationHandle
+			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+			        addr,
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+			        hdlLifePkgBuffToInt,        // IndexOffset
+			        attr,       // The defined AdsNotificationAttrib object
+			        hdlLifePkgBuffToInt,         // Choose arbitrary number
+			        lifePkgNotification);
+			
+			if(err!=0) {     
+			    exceptionMessage = "Error adding lifePkg notification: 0x" + Long.toHexString(err);
+			    //System.out.println(exceptionMessage); 
+			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			}
+			
+			// Handle: byte[] to int Convert the bytearray handle to an int and feed it to the adsSyncWriteReq
+			int hdlBuffToInt = Convert.ByteArrToInt(handleBuff.getByteArray());
+			
+			// Write value by handle
+			err = AdsCallDllFunction
+					.adsSyncWriteReq
+					(
+						addr,
+		                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
+		                hdlBuffToInt,
+		                0x1,
+		                new JNIByteBuffer(Convert.BoolToByteArr(true))
+	                );
+			
+			if(err!=0)
+			{
+				exceptionMessage = "Error writing by handle: "+ plcConnected +": 0x" + Long.toHexString(err);				
+				//System.out.println(exceptionMessage); 
+				throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());			
+			}
+			
+			// Read value by handle
+			//Read the value back and check if signal succresfully transfered (true)
+			err = AdsCallDllFunction
+					.adsSyncReadReq
+					(
+						addr,
+		                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
+		                hdlBuffToInt,
+		                0x1,
+		                dataBuff
+	                );
+			
+			if(err!=0)
+			{					
+				exceptionMessage = "Error reading by handle: "+ plcConnected +": 0x" + Long.toHexString(err);				
+				//System.out.println(exceptionMessage); 
+				throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			}
+			else
+			{
+				// Data: byte[] to boolean
+				boolean val = Convert.ByteArrToBool(dataBuff.getByteArray());
+				if(val)
 				{
-					symbol = new String(symbolBuff.getByteArray());
-				    System.out.println("Success: Got " + symbol  +" handle!");
-				}
-				
-				//Get Handle for lifePkg
-				err = AdsCallDllFunction
-						.adsSyncReadWriteReq
-						(
-							addr,
-							AdsCallDllFunction.ADSIGRP_SYM_HNDBYNAME,
-							0x0,
-							lifePkgHandle.getUsedBytesCount(),
-							lifePkgHandle,
-							lifePkgSymBuf.getUsedBytesCount(),
-							lifePkgSymBuf
-						);
-		
-				if(err!=0) 
-				{ 
-				    System.out.println("Error: Get handle: 0x" + Long.toHexString(err)); 
-				    
-				    Fault(10);
-				    return;
-				} 
-				else 
-				{
-					symbol = new String(lifePkgSymBuf.getByteArray());
-				    System.out.println("Success: Got " + symbol  +" handle!");
-				}
-				
-				hdlLifePkgBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
-				lifePkgNotification = new JNILong(hdlLifePkgBuffToInt);
-				listener = new AdsConnectorListener(hdlLifePkgBuffToInt);
-				callObject.addListenerCallbackAdsState(listener);
-				// Create notificationHandle
-				err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-				        addr,
-				        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-				        hdlLifePkgBuffToInt,        // IndexOffset
-				        attr,       // The defined AdsNotificationAttrib object
-				        hdlLifePkgBuffToInt,         // Choose arbitrary number
-				        lifePkgNotification);
-				
-				if(err!=0) { 
-				    System.out.println("Error adding lifePkg notification: 0x" 
-				            + Long.toHexString(err)); 
-				}
-				
-				// Handle: byte[] to int Convert the bytearray handle to an int and feed it to the adsSyncWriteReq
-				int hdlBuffToInt = Convert.ByteArrToInt(handleBuff.getByteArray());
-				
-				// Write value by handle
-				err = AdsCallDllFunction
-						.adsSyncWriteReq
-						(
-							addr,
-			                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-			                hdlBuffToInt,
-			                0x1,
-			                new JNIByteBuffer(Convert.BoolToByteArr(true))
-		                );
-				
-				if(err!=0)
-				{
-					System.out.println("Error: Write by handle: 0x" + Long.toHexString(err));
-					Fault(20);
-					return;
-				}
-				
-				// Read value by handle
-				//Read the value back and check if signal succresfully transfered (true)
-				err = AdsCallDllFunction
-						.adsSyncReadReq
-						(
-							addr,
-			                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-			                hdlBuffToInt,
-			                0x1,
-			                dataBuff
-		                );
-				
-				if(err!=0)
-				{
-					System.out.println("Error: Read by handle: 0x" + Long.toHexString(err));
+					System.out.println("Connection signal successfully transfered.");
+					busyStep = 10;
 					
-					Fault(20);
-					return;
 				}
 				else
 				{
-					// Data: byte[] to boolean
-					boolean val = Convert.ByteArrToBool(dataBuff.getByteArray());
-					if(val)
-					{
-						System.out.println("Connection signal successfully transfered.");
-						busyStep = 10;
-						
-					}
-					else
-					{
-						System.out.println("Connection signal transfer failed.");
-					}
-					
+					System.out.println("Connection signal transfer failed.");
 				}
 				
-				break;
-				
-			//********************************************************************************************************
-			case 10:
-				connected = true;
-	           
-	            busyStep = 20;
-				break;
-				
-			case 20:
-				
-				if(!listener.isPlcConnected())
-				{
-					connected = false;
-					Fault(10);
-					return;
-				}
-				break;
+			}
+			
+			break;
+			
+		//********************************************************************************************************
+		case 10:
+			
+			connected = true;
+			bBusyOk = true;
+			break;
+			
 		}
 	
 	}
 
 	@Override
-	protected void Idle() {
+	protected void idle() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Waiting() {
+	protected void waiting() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Error() {
-		switch(errorType)
+	protected void error() {
+		
+		switch(errorStep)
 		{
-		case 10://close connection
+		case 00:
+			
 			callObject.removeListenerCallbackAdsState(listener);
 			AdsCallDllFunction.adsPortClose();
 			connected = false;
+			errorStep = 10;
+			bErrorOk = true;
 			break;
-		case 20://just report
-			break;
+			
+		case 10:
+							
 		}
+		
 	}
-	
 
 }
 
 class AdsConnectorListener implements CallbackListenerAdsState {
+	
     private final static long SPAN = 11644473600000L;
     Date notificationDate;
     Date currentDate,resultDate;
@@ -331,7 +333,7 @@ class AdsConnectorListener implements CallbackListenerAdsState {
 	        
     	}
     }
-    
+    /*
     public boolean isPlcConnected()
     {
     	
@@ -372,4 +374,5 @@ class AdsConnectorListener implements CallbackListenerAdsState {
     
     	
     }
+    */
 }

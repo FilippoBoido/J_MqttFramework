@@ -41,31 +41,20 @@ public class AdsMqttClient extends StateMachine{
 		return connected;
 	}
 
-	public AdsMqttClient(String broker, String clientId)
+	public AdsMqttClient(String broker, String clientId) 
 	{
-		this.topic = topic;	
+		
 		this.broker = broker;
 		this.clientId = clientId;
 		persistence = new MemoryPersistence();  
 		try {
-			
 			mqttClient = new MqttClient(broker, clientId, persistence);
-			MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setCleanSession(true);
-            System.out.println("[AdsMqttClient] Connecting to broker: "+broker);
-            mqttClient.connect(connOpts);
-            System.out.println("[AdsMqttClient] Connected");
-            connected = true;
-    
-        } catch(MqttException me) {
-        	
-            System.out.println("reason "+me.getReasonCode());
-            System.out.println("msg "+me.getMessage());
-            System.out.println("loc "+me.getLocalizedMessage());
-            System.out.println("cause "+me.getCause());
-            System.out.println("excep "+me);
-            me.printStackTrace();
-        }
+		} catch (MqttException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
+		
+		
 	}
 	public boolean Subscribe(String topic)
 	{
@@ -158,39 +147,66 @@ public class AdsMqttClient extends StateMachine{
 				
 				Publish(StateMachine.getStateAsString(state));
 				Publish(sdf.format(date));
-				
-				
+							
 				break;
 		}
 	}
 	
 	@Override
-	protected void Init() {
+	protected void init() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Ready() {
+	protected void ready() throws MqttException {
+		switch(readyStep)
+		{
+		case 00:
+						
+		//try {
+		
+			MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true);
+            System.out.println("[AdsMqttClient] Connecting to broker: "+broker);
+            mqttClient.connect(connOpts);
+            System.out.println("[AdsMqttClient] Connected");
+            connected = true;
+	    
+	        /*
+	        } catch(MqttException me) {
+	        	
+	            System.out.println("reason "+me.getReasonCode());
+	            System.out.println("msg "+me.getMessage());
+	            System.out.println("loc "+me.getLocalizedMessage());
+	            System.out.println("cause "+me.getCause());
+	            System.out.println("excep "+me);
+	            me.printStackTrace();
+	        }
+			*/
+			bReadyOk = true;
+			readyStep = 10;
+			break;
+		}
+		
+		
+	}
+
+	@Override
+	protected void prepare() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Prepare() {
-		// TODO Auto-generated method stub
+	protected void busy() {
+		
+		bBusyOk = true;
 		
 	}
 
 	@Override
-	protected void Busy() {
-		
-		
-		
-	}
-
-	@Override
-	protected void Idle() {
+	protected void idle() {
 		try {
 			mqttClient.disconnect();
 			System.out.println("Mqtt client disconnected.");
@@ -209,14 +225,37 @@ public class AdsMqttClient extends StateMachine{
 	}
 
 	@Override
-	protected void Waiting() {
+	protected void waiting() {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	protected void Error() {
+	protected void error() {
 		// TODO Auto-generated method stub
+		switch(errorStep)
+		{
+		case 00:
+			try {
+				mqttClient.disconnect();
+				System.out.println("Mqtt client disconnected.");
+				mqttClient.close();
+				System.out.println("Mqtt client closed.");
+			} catch(MqttException me) {
+	            System.out.println("reason "+me.getReasonCode());
+	            System.out.println("msg "+me.getMessage());
+	            System.out.println("loc "+me.getLocalizedMessage());
+	            System.out.println("cause "+me.getCause());
+	            System.out.println("excep "+me);
+	            me.printStackTrace();
+	        }
+			bErrorOk = true;
+			errorStep = 10;
+			break;
+			
+		case 10:
+			break;
+		}
 		
 	}
 	

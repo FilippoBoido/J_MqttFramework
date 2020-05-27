@@ -1,19 +1,11 @@
 package packageMain;
 
-import java.nio.ByteOrder;
-import java.nio.charset.Charset;
-import java.util.Date;
-import java.util.Random;
-
-import de.beckhoff.jni.JNIByteBuffer;
 import de.beckhoff.jni.tcads.AmsAddr;
-import packageAds.FetcherThread;
 import packageAds.PlcConnector;
 import packageAds.PlcEventDrivenFetcher;
-import packageAds.PlcFetcher;
+import packageExceptions.AdsConnectionException;
 import packageMqtt.AdsMqttClient;
-import packageSystem.StateMachine;
-import packageSystem.StateMachine.E_StateMachine;
+
 
 public class Main {
 
@@ -25,7 +17,7 @@ public class Main {
 	    START_PLC_FETCHER,
 	    EXECUTE_MQTT_CLIENT,
 	    EXECUTE_PLC_FETCHER,
-	    DISPATCH_MQTT_PACKS,
+	    SYSTEM_MONITORING,
 	    DISCONNECT_AND_RELEASE_RESOURCES,
 	    RESTART
 	  }
@@ -52,92 +44,134 @@ public class Main {
 		AmsAddr addr = new AmsAddr();
 		PlcConnector plcConnector = new PlcConnector(addr);
 		PlcEventDrivenFetcher plcFetcher = new PlcEventDrivenFetcher(addr,adsMqttClient);
+		//Set callback for incoming messages
+		adsMqttClient.getMqttClient().setCallback(plcFetcher);
 			
 		
 		while(true)
 		{
-			plcConnector.CheckStateMachine();
-			adsMqttClient.CheckStateMachine();
-			plcFetcher.CheckStateMachine();
-			/*
-			if(plcConnector.isConnected())
-			{
+			
+			try {
+				
+				plcConnector.checkStateMachine();
+				plcFetcher.checkStateMachine();
+				adsMqttClient.checkStateMachine();
+				
+			} catch ( Throwable e ) {
+				// TODO Auto-generated catch block
+				if(e.getCause() instanceof AdsConnectionException)
+				{
+					plcConnector.fault();
+					plcFetcher.fault();
+					adsMqttClient.fault();
+					
+					e.printStackTrace();
+					
+					eMainStep = E_MainStep.DISCONNECT_AND_RELEASE_RESOURCES;
+					
+				}
 				
 			}
-			*/
-					
+						
 			switch(eMainStep)
 			{
 			
 				case INIT:
 					
-					if(plcConnector.isInitialized())
+					if(plcConnector.isInitOk())
 					{
-						plcConnector.Start();
-						eMainStep =E_MainStep.START_PLC_CONNECTOR;
+						plcConnector.start();
+						eMainStep = E_MainStep.START_PLC_CONNECTOR;
 					}
+					
 					break;
 					
 				case START_PLC_CONNECTOR:
 					
-					if(plcConnector.isReady())
+					if(plcConnector.isReadyOk())
 					{
-						plcConnector.Execute();
+						plcConnector.execute();
 						eMainStep = E_MainStep.EXECUTE_PLC_CONNECTOR;
 					}
+					
 					break;
 					
 				case EXECUTE_PLC_CONNECTOR:
 					
-					if(plcConnector.isBusy() && plcConnector.isConnected())
+					if(plcConnector.isConnected())
 					{
-						plcFetcher.Start();
+						plcFetcher.start();
+						plcConnector.waitLoop();
 						eMainStep = E_MainStep.START_PLC_FETCHER;
 						
 					}
+					
 					break;
 								
 				case START_PLC_FETCHER:
 					
-					if(plcFetcher.isReady())
+					if(plcFetcher.isReadyOk())
 					{
-						plcFetcher.Execute();
+						plcFetcher.execute();
 						eMainStep = E_MainStep.EXECUTE_PLC_FETCHER;
 					}
+					
 					break;
 					
 				case EXECUTE_PLC_FETCHER:
 					
-					if(plcFetcher.isBusy())
+					if(plcFetcher.isBusyOk())
 					{
-						adsMqttClient.Start();
+						adsMqttClient.start();
 						eMainStep = E_MainStep.START_MQTT_CLIENT;
 					}
-					
-					
+							
 					break;
 					
 				case START_MQTT_CLIENT:	
 					
-					if(adsMqttClient.isReady())
+					if(adsMqttClient.isReadyOk())
 					{
-						adsMqttClient.Execute();
+						adsMqttClient.execute();
 						eMainStep = E_MainStep.EXECUTE_MQTT_CLIENT;
 					}
+					
 					break;
 					
 				case EXECUTE_MQTT_CLIENT:
 					
-					if(adsMqttClient.isBusy())
+					if(adsMqttClient.isBusyOk())
 					{	
-						;
+						eMainStep = E_MainStep.SYSTEM_MONITORING;
 					}	
+					
 					break;	
 					
+				case SYSTEM_MONITORING:		
+					break;
+					
 				case DISCONNECT_AND_RELEASE_RESOURCES:
+					
+					if(		plcConnector.isErrorOk() 
+						&&	adsMqttClient.isErrorOk()
+						&&	plcFetcher.isErrorOk() ) {
+						
+						plcConnector.reset();
+						plcFetcher.reset();
+						adsMqttClient.reset();
+						
+						eMainStep = E_MainStep.RESTART;
+					}
+					
 					break;
 					
 				case RESTART:
+					
+					if(plcConnector.isReady())
+					{
+						eMainStep = E_MainStep.START_PLC_CONNECTOR;
+					}
+					
 					break;
 			
 			}

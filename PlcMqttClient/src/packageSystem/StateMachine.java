@@ -13,18 +13,55 @@ public abstract class StateMachine {
 	  }
 	
 	
-	private boolean bFirstCall = true, bInitialized = false;
-	protected int errorType;
+	protected boolean 	bFirstCall = true, 
+						bInitOk = false,
+						bReadyOk = false,
+						bBusyOk = false,
+						bErrorOk = false,
+						bIdleOk = false,
+						bWaitOk = false;
+					
+	protected int 	errorType,
+					busyStep,
+					readyStep,
+					waitStep,
+					errorStep,
+					initStep,
+					idleStep;
+	
+	protected String exceptionMessage;
+	
 	public E_StateMachine eStateMachine;
 	
 	public StateMachine() {
-		Boot();	
+		boot();	
+	}
+	
+	private void resetOkStates()
+	{
+		bInitOk = false;
+		bReadyOk = false;
+		bBusyOk = false;
+		bErrorOk = false;
+		bIdleOk = false;
+		bWaitOk = false;
+	}
+	
+	private void resetSteps()
+	{
+		busyStep = 0;
+		readyStep = 0;
+		waitStep = 0;
+		errorStep = 0;
+		initStep = 0;
+		idleStep = 0;
 	}
 	
 	public static String getStateAsString(int state)
 	{
 		switch(state)
 		{
+		
 		case 0:
 			return "No state";
 			
@@ -47,64 +84,59 @@ public abstract class StateMachine {
 			return "Idle";
 			
 		case 7: 
-			return "Error";
-			
-		
+			return "Error";			
 			
 		}
-		
 			
-		return "No state";
-		
+		return "No state";		
 	}
 	
-	public void CheckStateMachine()
+	public void checkStateMachine() throws Throwable
 	{
 		switch(eStateMachine)
 		{
 			case eInit: 
-				Init();
-				bInitialized = true;
+				init();
+				bInitOk = true;
 				eStateMachine = E_StateMachine.eWaiting;
 				break;
 				
 			case eReady:
-				Ready();
+				ready();
 				break;
 				
 			case ePrepare: 
-				Prepare();
+				prepare();
 				eStateMachine = E_StateMachine.eBusy;
 				break;
 				
 			case eBusy:
-				Busy();
+				busy();
 				break;
 				
 			case eIdle:
-				Idle();
+				idle();
 				eStateMachine = E_StateMachine.eReady;
 				break;
 				
 			case eWaiting:
-				Waiting();
+				waiting();
 				break;
 				
 			case eError:
-				Error();
-				break;
-		
+				error();
+				break;	
 		}
 	}
 	
 	//States
-	protected abstract void Init();
-	protected abstract void Ready();
-	protected abstract void Prepare();
-	protected abstract void Busy();
-	protected abstract void Idle();
-	protected abstract void Waiting();
-	protected abstract void Error();
+	protected abstract void init() throws Throwable;
+	protected abstract void ready() throws Throwable;
+	protected abstract void prepare() throws Throwable;
+	protected abstract void busy() throws Throwable;
+	protected abstract void idle() throws Throwable;
+	protected abstract void waiting() throws Throwable;
+	protected abstract void error() throws Throwable;
 	
 	
 	public boolean isInit()
@@ -137,10 +169,37 @@ public abstract class StateMachine {
 		return (E_StateMachine.eIdle == eStateMachine);
 	}
 	
-	public boolean isInitialized()
+	public boolean isInitOk()
 	{
-		return bInitialized;
+		return bInitOk;
 	}
+	
+	public boolean isReadyOk()
+	{
+		return bReadyOk;
+	}
+	
+	public boolean isBusyOk()
+	{
+		return bBusyOk;
+	}
+	
+	public boolean isErrorOk()
+	{
+		return bErrorOk;
+	}
+	
+	public boolean isWaitOk()
+	{
+		return bWaitOk;
+	}
+	
+	public boolean isIdleOk()
+	{
+		return bIdleOk;
+	}
+	
+	
 	
 	public boolean isWaiting()
 	{
@@ -148,102 +207,117 @@ public abstract class StateMachine {
 	}
 	
 	//Cmds
-	protected boolean Boot()
+	protected boolean boot()
 	{
 		if(bFirstCall)
 		{
 			bFirstCall = false;
-			ChangeState(E_StateMachine.eInit);
+			changeState(E_StateMachine.eInit);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	public boolean Done()
+	public boolean done()
 	{
 		if(eStateMachine == E_StateMachine.eBusy)
 		{
-			ChangeState(E_StateMachine.eIdle);
+			changeState(E_StateMachine.eIdle);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	public boolean EndWait()
+	public boolean endWait()
 	{
 		if(eStateMachine == E_StateMachine.eWaiting)
 		{
-			ChangeState(E_StateMachine.eBusy);
+			changeState(E_StateMachine.eBusy);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	public boolean Execute()
+	public boolean execute()
 	{
-		if(eStateMachine == E_StateMachine.eReady
-				|| eStateMachine == E_StateMachine.eWaiting)
+		if(		eStateMachine == E_StateMachine.eReady
+			|| 	eStateMachine == E_StateMachine.eWaiting)
 		{
-			ChangeState(E_StateMachine.ePrepare);
+			changeState(E_StateMachine.ePrepare);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	protected boolean Fault(int errorType)
+	public boolean fault(int errorType)
 	{
-		if(eStateMachine == E_StateMachine.eBusy
-				|| eStateMachine == E_StateMachine.eInit
-				|| eStateMachine == E_StateMachine.eReady)
+		if(		eStateMachine == E_StateMachine.eBusy
+			|| 	eStateMachine == E_StateMachine.eInit
+			|| 	eStateMachine == E_StateMachine.eReady)
 		{
 			this.errorType = errorType;
-			ChangeState(E_StateMachine.eError);
+			changeState(E_StateMachine.eError);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	public boolean Reset()
+	public boolean fault()
+	{
+		if(		eStateMachine == E_StateMachine.eBusy
+			|| 	eStateMachine == E_StateMachine.eInit
+			|| 	eStateMachine == E_StateMachine.eReady)
+		{
+			changeState(E_StateMachine.eError);
+			return true;
+		}
+		
+		return false;
+	}
+	
+	public boolean reset()
 	{
 		if(eStateMachine == E_StateMachine.eError)
 		{
-			ChangeState(E_StateMachine.eReady);
+			changeState(E_StateMachine.eReady);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	public boolean Start()
+	public boolean start()
 	{
-		if(eStateMachine == E_StateMachine.eInit
-				|| eStateMachine == E_StateMachine.eWaiting)
+		if(		eStateMachine == E_StateMachine.eInit
+			|| 	eStateMachine == E_StateMachine.eWaiting)
 		{
-			ChangeState(E_StateMachine.eReady);
+			changeState(E_StateMachine.eReady);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	public boolean Wait()
+	public boolean waitLoop()
 	{
 		if(eStateMachine == E_StateMachine.eBusy)
 		{
-			ChangeState(E_StateMachine.eWaiting);
+			changeState(E_StateMachine.eWaiting);
 			return true;
 		}
 		
 		return false;
 	}
 	
-	private void ChangeState(E_StateMachine eStateMachine)
+	private void changeState(E_StateMachine eStateMachine)
 	{
+		resetOkStates();
+		resetSteps();
 		this.eStateMachine = eStateMachine;
 	}
 	
