@@ -5,6 +5,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
+import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -28,7 +29,7 @@ public class AdsMqttClient extends StateMachine{
 	private int qos  = 2;    
 	private MemoryPersistence persistence;
 	private MqttClient mqttClient;
-	
+	private MqttCallback mqttCallback;
 	public MqttClient getMqttClient() {
 		return mqttClient;
 	}
@@ -42,20 +43,22 @@ public class AdsMqttClient extends StateMachine{
 	}
 
 	public AdsMqttClient(String broker, String clientId) 
-	{
-		
+	{		
 		this.broker = broker;
-		this.clientId = clientId;
-		persistence = new MemoryPersistence();  
-		try {
-			mqttClient = new MqttClient(broker, clientId, persistence);
-		} catch (MqttException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
-		
-		
+		this.clientId = clientId;	
 	}
+	
+	public AdsMqttClient(String broker, String clientId, MqttCallback mqttCallback) 
+	{	
+		this(broker,clientId);
+		this.mqttCallback = mqttCallback;	
+	}
+	
+	public void setCallback(MqttCallback mqttCallback)
+	{
+		this.mqttCallback = mqttCallback;
+	}
+	
 	public boolean Subscribe(String topic)
 	{
 		if(mqttClient != null && connected)
@@ -155,6 +158,7 @@ public class AdsMqttClient extends StateMachine{
 	@Override
 	protected void init() {
 		// TODO Auto-generated method stub
+			
 		
 	}
 
@@ -166,6 +170,15 @@ public class AdsMqttClient extends StateMachine{
 						
 		//try {
 		
+			persistence = new MemoryPersistence();  
+			try {
+				mqttClient = new MqttClient(broker, clientId, persistence);
+				mqttClient.setCallback(mqttCallback);
+			} catch (MqttException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
 			MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setCleanSession(true);
             System.out.println("[AdsMqttClient] Connecting to broker: "+broker);
@@ -237,16 +250,15 @@ public class AdsMqttClient extends StateMachine{
 		{
 		case 00:
 			try {
-				mqttClient.disconnect();
-				System.out.println("Mqtt client disconnected.");
-				mqttClient.close();
-				System.out.println("Mqtt client closed.");
-			} catch(MqttException me) {
-	            System.out.println("reason "+me.getReasonCode());
-	            System.out.println("msg "+me.getMessage());
-	            System.out.println("loc "+me.getLocalizedMessage());
-	            System.out.println("cause "+me.getCause());
-	            System.out.println("excep "+me);
+				if(mqttClient != null)
+				{
+					mqttClient.disconnect();
+					System.out.println("Mqtt client disconnected.");
+					mqttClient.close();
+					System.out.println("Mqtt client closed.");
+				}
+			} catch(Exception me) {
+				
 	            me.printStackTrace();
 	        }
 			bErrorOk = true;

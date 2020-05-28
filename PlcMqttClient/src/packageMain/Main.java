@@ -45,7 +45,7 @@ public class Main {
 		PlcConnector plcConnector = new PlcConnector(addr);
 		PlcEventDrivenFetcher plcFetcher = new PlcEventDrivenFetcher(addr,adsMqttClient);
 		//Set callback for incoming messages
-		adsMqttClient.getMqttClient().setCallback(plcFetcher);
+		adsMqttClient.setCallback(plcFetcher);
 			
 		
 		while(true)

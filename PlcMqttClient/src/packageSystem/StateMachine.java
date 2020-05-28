@@ -257,7 +257,8 @@ public abstract class StateMachine {
 	{
 		if(		eStateMachine == E_StateMachine.eBusy
 			|| 	eStateMachine == E_StateMachine.eInit
-			|| 	eStateMachine == E_StateMachine.eReady)
+			|| 	eStateMachine == E_StateMachine.eReady
+			|| 	eStateMachine == E_StateMachine.eWaiting)
 		{
 			this.errorType = errorType;
 			changeState(E_StateMachine.eError);
@@ -269,13 +270,8 @@ public abstract class StateMachine {
 	
 	public boolean fault()
 	{
-		if(		eStateMachine == E_StateMachine.eBusy
-			|| 	eStateMachine == E_StateMachine.eInit
-			|| 	eStateMachine == E_StateMachine.eReady)
-		{
-			changeState(E_StateMachine.eError);
+		if(fault(0))
 			return true;
-		}
 		
 		return false;
 	}
