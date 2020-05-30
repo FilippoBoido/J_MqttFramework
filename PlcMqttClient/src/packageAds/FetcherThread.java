@@ -81,7 +81,7 @@ public class FetcherThread extends Thread {
 			   	
 			   	if(adsMqttClient != null)
 				{
-					adsMqttClient.Publish(buffer,ePublishMode);
+					adsMqttClient.publish(buffer,ePublishMode);
 					try {
 						sleep(amountOfSleep);
 					} catch (InterruptedException e) {

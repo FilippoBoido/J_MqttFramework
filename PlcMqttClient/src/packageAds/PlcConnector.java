@@ -88,6 +88,7 @@ public class PlcConnector extends StateMachine  {
 		switch(readyStep)
 		{
 		case 00:
+			AdsCallDllFunction.adsSyncSetTimeout(10000);
 			AdsCallDllFunction.adsPortOpen();
 			
 			err = AdsCallDllFunction.getLocalAddress(addr);
@@ -101,7 +102,7 @@ public class PlcConnector extends StateMachine  {
 			}
 			
 			
-			System.out.println("Success: ADS communication opened.");        
+			System.out.println("[PlcConnector.ready] Success: ADS communication opened.");        
 			readyStep = 10;
 			bReadyOk = true;
 		
@@ -148,7 +149,7 @@ public class PlcConnector extends StateMachine  {
 			else 
 			{
 				symbol = new String(symbolBuff.getByteArray());
-			    System.out.println("Success: Got handle for " + symbol);
+			    System.out.println("[PlcConnector.busy] Success: Got handle for " + symbol);
 			}
 			
 			//Get Handle for lifePkg
@@ -173,7 +174,7 @@ public class PlcConnector extends StateMachine  {
 			else 
 			{
 				symbol = new String(lifePkgSymBuf.getByteArray());
-			    System.out.println("Success: Got handle for " + symbol);
+			    System.out.println("[PlcConnector.busy] Success: Got handle for " + symbol);
 			}
 			
 			hdlLifePkgBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
@@ -240,13 +241,13 @@ public class PlcConnector extends StateMachine  {
 				boolean val = Convert.ByteArrToBool(dataBuff.getByteArray());
 				if(val)
 				{
-					System.out.println("Connection signal successfully transfered.");
+					System.out.println("[PlcConnector.busy] Connection signal successfully transfered.");
 					busyStep = 10;
 					
 				}
 				else
 				{
-					System.out.println("Connection signal transfer failed.");
+					System.out.println("[PlcConnector.busy] Connection signal transfer failed.");
 				}
 				
 			}
@@ -310,12 +311,12 @@ class AdsConnectorListener implements CallbackListenerAdsState {
     	this.listenerID = listenerID;
     }
     // Callback function
-    public void onEvent(AmsAddr addr,
-                    AdsNotificationHeader notification,
-                    long user) {
-
+    public synchronized void onEvent(AmsAddr addr, AdsNotificationHeader notification,long user) 
+    {
+    	;
         // The PLC timestamp is coded in Windows FILETIME.
         // Nano secs since 01.01.1601.
+    	/*
     	if((int) user == listenerID)
     	{
 	        long dateInMillis = notification.getNTimeStamp();
@@ -332,6 +333,7 @@ class AdsConnectorListener implements CallbackListenerAdsState {
 	        System.out.println("ServerNetID:\t" + addr.getNetIdString() + "\n");
 	        
     	}
+    	*/
     }
     /*
     public boolean isPlcConnected()

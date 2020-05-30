@@ -49,7 +49,9 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
     		publishingNotificationSignal;
     
 	int adsSubscriptionCounter,
-		adsPublicationCounter;
+		adsPublicationCounter,
+		adsPublishingStep,
+		adsSubscribingStep;
 	
 	public PlcEventDrivenFetcher(AmsAddr addr, AdsMqttClient adsMqttClient) {
 		super(addr, adsMqttClient);
@@ -107,7 +109,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 			    
 			}
 			
-			// Create notificationHandle
+			/*
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
 			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
@@ -121,7 +123,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 			    exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
 			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 			}
-			
+			*/
 			// Create notificationHandle
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
@@ -137,7 +139,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 			}
 			
-			// Create notificationHandle
+			/*
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
 			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
@@ -151,7 +153,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 				exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
 			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 			}
-			
+			*/
 			bReadyOk = true;
 			readyStep = 10;
 			break;
@@ -204,16 +206,27 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 	@Override
 	protected void busy() throws AdsConnectionException , UnsupportedEncodingException{	
 		
-		
-		if(adsSubscribing == true && adsSubscribed == false && subscribingNotificationSignal == true)
+		switch(adsSubscribingStep)
 		{
-			subscribingNotificationSignal = false;
+		
+		case 00:
+			
+			if(subscribingNotificationSignal == true)
+			{
+				subscribingNotificationSignal = false;
+				adsSubscribingStep = 10;
+			}
+			
+			break;
+			
+		case 10:
+			
 			//Plc wants to subscribe to new topic
-			FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, buffer_subscriptions);
-			FetchSymbolToBuffer(hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
+			fetchSymbolToBuffer(new String(symbol_subscriptions.getByteArray()),hdlSubscriptions,sizeOfSubscriptions, buffer_subscriptions);
+			fetchSymbolToBuffer(new String(symbol_subscriptionCounter.getByteArray()),hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
 			
 			currentSubCounter = Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray());
-			System.out.println("[PlcFetcher.Busy] Subscription counter: "+ currentSubCounter);
+			System.out.println("[PlcEventDrivenFetcher.Busy] Subscription counter: "+ currentSubCounter);
 			currentSubCounter -= 2;
 			
 				//Extract the topic and subscribe
@@ -226,25 +239,52 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 					break;
 			}
 			
-			
 			String topic = Convert.ByteArrToString(topicByteArr);
-			if(adsMqttClient.Subscribe(topic))
+			if(adsMqttClient.subscribe(topic))
 			{
 				//subscribed
-				System.out.println("[PlcFetcher.Busy] Subscribed to topic: " + topic);
-				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlSubscribed, 1);	
+				System.out.println("[PlcEventDrivenFetcher.Busy] Subscribed to topic: " + topic);
+				writeSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlSubscribed, 1);	
 			}
+			
+			adsSubscribingStep = 20;
+			break;
+			
+		case 20:
+			
+			fetchSymbolToBuffer(new String(symbol_subscribed.getByteArray()),hdlSubscribed,1,buffer_subscribed);
+			
+			if(Convert.ByteArrToBool(buffer_subscribed.getByteArray()))
+				adsSubscribingStep = 00;
+			
+			break;
+			
 		}
 		
-		if(adsPublishing == true && adsPublished == false && publishingNotificationSignal == true)
+		
+		
+		switch(adsPublishingStep)
 		{
-			publishingNotificationSignal = false;
-			//Plc wants to publish a new topic
-			FetchSymbolToBuffer(hdlPublications,sizeOfPublications, buffer_publications);
-			FetchSymbolToBuffer(hdlPublicationCounter, 2, buffer_publicationCounter);
+		
+		case 00:
+			
+			if(publishingNotificationSignal == true)
+			{
+				publishingNotificationSignal = false;
+				adsPublishingStep = 10;
+			}
+			
+			break;
+			
+		case 10:
+			
+			hdlPublications = fetchSymbolHdl(handle_publications,symbol_publications);
+			//System.out.println("[PlcEventDrivenFetcher.Busy] hdlPublications: "+hdlPublications + " sizeOfPublications: " +sizeOfPublications+" length of buffer: "+ buffer_publications.getByteArray().length);
+			fetchSymbolToBuffer(new String(symbol_publications.getByteArray()),hdlPublications,sizeOfPublications, buffer_publications);
+			fetchSymbolToBuffer(new String(symbol_publicationCounter.getByteArray()),hdlPublicationCounter, 2, buffer_publicationCounter);
 			
 			currentPubCounter = Convert.ByteArrToShort(buffer_publicationCounter.getByteArray());
-			System.out.println("[PlcFetcher.Busy] Publication counter: "+currentPubCounter);
+			System.out.println("[PlcEventDrivenFetcher.Busy] Publication counter: "+currentPubCounter);
 			currentPubCounter -= 2;
 			
 			shell = currentPubCounter * sizeOfAdsShell;
@@ -260,14 +300,24 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 				payloadByteArr[i] = buffer_publications.getByteArray()[shell+(i+10)];
 			}
 			
-			if(adsMqttClient.Publish(Convert.ByteArrToString(topicByteArr),payloadByteArr))
+			if(adsMqttClient.publish(Convert.ByteArrToString(topicByteArr),payloadByteArr))
 			{
 				
-				WriteSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
+				writeSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
 			}
-			//Published
+			adsPublishingStep = 20;
 			
+			break;
 			
+		case 20:
+			
+			fetchSymbolToBuffer(new String(symbol_published.getByteArray()),hdlPublished,1,buffer_published);
+			
+			if(Convert.ByteArrToBool(buffer_published.getByteArray()))
+				adsPublishingStep = 00;
+			
+			break;
+				
 		}
 		
 		if(!adsMessageList.isEmpty())
@@ -281,22 +331,22 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 			JNIByteBuffer locBuffer_subscriptions = new JNIByteBuffer(sizeOfSubscriptions);
 			JNIByteBuffer locBuffer_subscriptionCounter = new JNIByteBuffer(2);
 			
-			FetchSymbolToBuffer(hdlSubscriptions,sizeOfSubscriptions, locBuffer_subscriptions);
-			FetchSymbolToBuffer(hdlSubscriptionCounter, 2, locBuffer_subscriptionCounter);
+			fetchSymbolToBuffer(new String(symbol_sizeOfSubscriptions.getByteArray()),hdlSubscriptions,sizeOfSubscriptions, locBuffer_subscriptions);
+			fetchSymbolToBuffer(new String(symbol_subscriptionCounter.getByteArray()),hdlSubscriptionCounter, 2, locBuffer_subscriptionCounter);
 			
 			short currentSubCounter = Convert.ByteArrToShort(locBuffer_subscriptionCounter.getByteArray());
-			System.out.println("[PlcFetcher.messageArrived] Topic: " + adsMessage.getTopic());
+			System.out.println("[PlcEventDrivenFetcher.messageArrived] Topic: " + adsMessage.getTopic());
 			
 			currentSubCounter -= 1;	
 			int loops = currentSubCounter;
-			System.out.println("[PlcFetcher.messageArrived] Calculated loops: " + loops);
+			System.out.println("[PlcEventDrivenFetcher.messageArrived] Calculated loops: " + loops);
 			//currentSubCounter -= 1;
 			int shell = currentSubCounter * sizeOfAdsShell;
-			System.out.println("[PlcFetcher.messageArrived] Size of current subscription memory: " + shell);
+			System.out.println("[PlcEventDrivenFetcher.messageArrived] Size of current subscription memory: " + shell);
 			
 			for(int i = 0; i < (loops * sizeOfAdsShell); i = i + sizeOfAdsShell)
 			{
-				System.out.println("[PlcFetcher.messageArrived] Size of current subscription offset: " + i);
+				System.out.println("[PlcEventDrivenFetcher.messageArrived] Size of current subscription offset: " + i);
 				for(int k = 0 ; k < 9 ; k++)
 				{
 					locTopicByteArr[k] = locBuffer_subscriptions.getByteArray()[i+(k+1)];
@@ -325,13 +375,13 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 					}
 					
 					String decodedMessage = new String(locPayloadByteArr, "UTF-8");
-					System.out.println("[PlcFetcher.messageArrived] decoded message: " + decodedMessage);
-					System.out.println("[PlcFetcher.messageArrived] Topic found in plc.");
+					System.out.println("[PlcEventDrivenFetcher.messageArrived] decoded message: " + decodedMessage);
+					System.out.println("[PlcEventDrivenFetcher.messageArrived] Topic found in plc.");
 					locBuffer_subscriptions.setByteArray(buffer, false);
 					long start = System.nanoTime();   	
-					WriteSymbolFromBuffer(locBuffer_subscriptions, hdlSubscriptions, sizeOfSubscriptions);	
+					writeSymbolFromBuffer(locBuffer_subscriptions, hdlSubscriptions, sizeOfSubscriptions);	
 					long elapsedTime = System.nanoTime() - start;
-					System.out.println("[PlcFetcher.messageArrived] ADS-Transfer time: " + elapsedTime);
+					System.out.println("[PlcEventDrivenFetcher.messageArrived] ADS-Transfer time: " + elapsedTime);
 					return;
 				}
 			}
@@ -387,35 +437,40 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 		
 	}
 	
-	public void onEvent(AmsAddr addr,AdsNotificationHeader notification,long user) {
+	public synchronized void onEvent(AmsAddr addr,AdsNotificationHeader notification,long user) {
     		
 		Long lUser = new Long(user);
 	
 		if(lUser.intValue() == adsSubscribingHandle)
 		{
-			subscribingNotificationSignal = true;
 			adsSubscribing =  Convert.ByteArrToBool(notification.getData());
-			System.out.println("adsSubscribingHandle Value:\t\t" + adsSubscribing);
 			
+			if(adsSubscribing == true)
+				subscribingNotificationSignal = true;
 			
+			System.out.println("[PlcEventDrivenFetcher.onEvent] adsSubscribingHandle Value: " + adsSubscribing);	
 		}
 		else if(lUser.intValue() == adsSubscribedHandle)
 		{
 			adsSubscribed =  Convert.ByteArrToBool(notification.getData());
-			System.out.println("adsSubscribedHandle Value:\t\t" + adsSubscribed);
+			System.out.println("[PlcEventDrivenFetcher.onEvent] adsSubscribedHandle Value: " + adsSubscribed);
 		}
 		else if(lUser.intValue() == adsPublishingHandle)
 		{
-			publishingNotificationSignal = true;
+			
 			adsPublishing = Convert.ByteArrToBool(notification.getData());
-			System.out.println("adsPublishingHandle Value:\t\t" + adsPublishing);
+			
+			if(adsPublishing)
+				publishingNotificationSignal = true;
+			
+			System.out.println("[PlcEventDrivenFetcher.onEvent] adsPublishingHandle Value: " + adsPublishing);
 			
 				
 		}
 		else if(lUser.intValue() == adsPublishedHandle)
 		{
 			adsPublished = Convert.ByteArrToBool(notification.getData());
-			System.out.println("adsPublishedHandle Value:\t\t" + adsPublished);
+			System.out.println("[PlcEventDrivenFetcher.onEvent] adsPublishedHandle Value: " + adsPublished);
 		}
 			
 	}

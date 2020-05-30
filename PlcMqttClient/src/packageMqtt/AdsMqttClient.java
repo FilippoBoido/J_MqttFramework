@@ -59,7 +59,7 @@ public class AdsMqttClient extends StateMachine{
 		this.mqttCallback = mqttCallback;
 	}
 	
-	public boolean Subscribe(String topic)
+	public boolean subscribe(String topic)
 	{
 		if(mqttClient != null && connected)
 		{
@@ -79,7 +79,7 @@ public class AdsMqttClient extends StateMachine{
 		return false;
 		
 	}
-	public void Publish(String message)
+	public void publish(String message)
 	{
 		if(mqttClient != null && connected)
 		{
@@ -104,7 +104,7 @@ public class AdsMqttClient extends StateMachine{
 		}    
 	}
 	
-	public boolean Publish(String topic, byte[] payload)
+	public boolean publish(String topic, byte[] payload)
 	{
 		if(mqttClient != null && connected)
 		{
@@ -128,7 +128,7 @@ public class AdsMqttClient extends StateMachine{
 		return false;
 	}
 	
-	public void Publish(JNIByteBuffer buffer,E_PublishMode ePublishMode)
+	public void publish(JNIByteBuffer buffer,E_PublishMode ePublishMode)
 	{
 		switch(ePublishMode)
 		{
@@ -148,8 +148,8 @@ public class AdsMqttClient extends StateMachine{
 				SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
 				sdf.setTimeZone(TimeZone.getTimeZone("Germany/Berlin"));
 				
-				Publish(StateMachine.getStateAsString(state));
-				Publish(sdf.format(date));
+				publish(StateMachine.getStateAsString(state));
+				publish(sdf.format(date));
 							
 				break;
 		}

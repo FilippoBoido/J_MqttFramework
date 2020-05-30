@@ -138,7 +138,7 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 
 	}
 
-	synchronized void FetchSymbolToBuffer(int hdl,int size, JNIByteBuffer buffer) throws AdsConnectionException
+	synchronized void fetchSymbolToBuffer(String symbolName,int hdl,int size, JNIByteBuffer buffer) throws AdsConnectionException
 	{
 		long err = AdsCallDllFunction
 				   .adsSyncReadReq
@@ -152,12 +152,12 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 				   
 		if(err!=0)
 		{
-			exceptionMessage = "Error: Read by handle: 0x" + Long.toHexString(err);
+			exceptionMessage = "Error reading handle for symbol: "+ symbolName +" : 0x" + Long.toHexString(err);
 			throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 		}
 	}
 	
-	int FetchSymbolHdl(JNIByteBuffer handle, JNIByteBuffer symbol) throws AdsConnectionException
+	int fetchSymbolHdl(JNIByteBuffer handle, JNIByteBuffer symbol) throws AdsConnectionException
 	{
 		long err = AdsCallDllFunction
 				.adsSyncReadWriteReq
@@ -174,18 +174,18 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	   if(err!=0) 
 	   { 
 		   
-		   exceptionMessage = "Error: Get handle: 0x"+ Long.toHexString(err);
+		   exceptionMessage = "Error getting handle for symbol: " + new String(symbol.getByteArray()) +  " : 0x"+ Long.toHexString(err);
 		   throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 		   
 	   } 
 	   else 
 	   {
-		   System.out.println("Success: Got handle!");
+		   System.out.println("[PlcFetcher.fetchSymbolHdl] Handle for symbol: " + new String(symbol.getByteArray()) +" succesfully received");
 	   }
 	   return Convert.ByteArrToInt(handle.getByteArray());
 	}
 	
-	synchronized void WriteSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size) throws AdsConnectionException
+	synchronized void writeSymbolFromBuffer(JNIByteBuffer buffer, int hdl, int size) throws AdsConnectionException
 	{
 		// Write value by handle
 		err = AdsCallDllFunction
@@ -209,11 +209,11 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	@Override
 	protected void ready() throws AdsConnectionException {
 		
-		hdlSizeOfSubscriptions = FetchSymbolHdl(handle_sizeOfSubscriptions,symbol_sizeOfSubscriptions);
-		hdlSizeOfPublications = FetchSymbolHdl(handle_sizeOfPublications,symbol_sizeOfPublications);
+		hdlSizeOfSubscriptions = fetchSymbolHdl(handle_sizeOfSubscriptions,symbol_sizeOfSubscriptions);
+		hdlSizeOfPublications = fetchSymbolHdl(handle_sizeOfPublications,symbol_sizeOfPublications);
 		
-		FetchSymbolToBuffer(hdlSizeOfSubscriptions, 2, buffer_sizeOfSubscriptions);
-		FetchSymbolToBuffer(hdlSizeOfPublications, 2, buffer_sizeOfPublications);
+		fetchSymbolToBuffer(new String(symbol_sizeOfSubscriptions.getByteArray()), hdlSizeOfSubscriptions, 2, buffer_sizeOfSubscriptions);
+		fetchSymbolToBuffer(new String(symbol_sizeOfPublications.getByteArray()), hdlSizeOfPublications, 2, buffer_sizeOfPublications);
 
 		sizeOfSubscriptions = Convert.ByteArrToShort(buffer_sizeOfSubscriptions.getByteArray());
 		sizeOfPublications = Convert.ByteArrToShort(buffer_sizeOfPublications.getByteArray());
@@ -221,45 +221,46 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		buffer_subscriptions = new JNIByteBuffer(sizeOfSubscriptions);
 		buffer_publications = new JNIByteBuffer(sizeOfPublications);
 		
-		hdlSubscriptions = FetchSymbolHdl(handle_subscriptions,symbol_subscriptions);
-		hdlPublications = FetchSymbolHdl(handle_publications,symbol_publications);
+		hdlSubscriptions = fetchSymbolHdl(handle_subscriptions,symbol_subscriptions);
+		hdlPublications = fetchSymbolHdl(handle_publications,symbol_publications);
+		System.out.println("[PlcEventDrivenFetcher.Busy] hdlPublications: "+hdlPublications);
 		//get the max subscriptions and max publications first
-		FetchSymbolToBuffer(hdlSubscriptions, sizeOfSubscriptions, buffer_subscriptions);
-		FetchSymbolToBuffer(hdlPublications, sizeOfPublications, buffer_publications);
+		fetchSymbolToBuffer(new String(symbol_subscriptions.getByteArray()),hdlSubscriptions, sizeOfSubscriptions, buffer_subscriptions);
+		fetchSymbolToBuffer(new String(symbol_publications.getByteArray()),hdlPublications, sizeOfPublications, buffer_publications);
 		
-		hdlPublicationCounter = FetchSymbolHdl(handle_publicationCounter,symbol_publicationCounter);
-		hdlSubscriptionCounter = FetchSymbolHdl(handle_subscriptionCounter,symbol_subscriptionCounter);
+		hdlPublicationCounter = fetchSymbolHdl(handle_publicationCounter,symbol_publicationCounter);
+		hdlSubscriptionCounter = fetchSymbolHdl(handle_subscriptionCounter,symbol_subscriptionCounter);
 		
 		buffer_publicationCounter = new JNIByteBuffer(2);
 		buffer_subscriptionCounter = new JNIByteBuffer(2);
 		
-		FetchSymbolToBuffer(hdlPublicationCounter, 2, buffer_publicationCounter);
-		FetchSymbolToBuffer(hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
+		fetchSymbolToBuffer(new String(symbol_publicationCounter.getByteArray()),hdlPublicationCounter, 2, buffer_publicationCounter);
+		fetchSymbolToBuffer(new String(symbol_subscriptionCounter.getByteArray()),hdlSubscriptionCounter, 2, buffer_subscriptionCounter);
 		
-		hdlSubscribing = FetchSymbolHdl(handle_subscribing,symbol_subscribing);
-		hdlPublishing = FetchSymbolHdl(handle_publishing, symbol_publishing);
-		hdlSubscribed = FetchSymbolHdl(handle_subscribed,symbol_subscribed);
-		hdlPublished = FetchSymbolHdl(handle_published,symbol_published);
+		hdlSubscribing = fetchSymbolHdl(handle_subscribing,symbol_subscribing);
+		hdlPublishing = fetchSymbolHdl(handle_publishing, symbol_publishing);
+		hdlSubscribed = fetchSymbolHdl(handle_subscribed,symbol_subscribed);
+		hdlPublished = fetchSymbolHdl(handle_published,symbol_published);
 		
 		buffer_subscribing = new JNIByteBuffer(1);
 		buffer_subscribed = new JNIByteBuffer(1);
 		buffer_publishing = new JNIByteBuffer(1);
 		buffer_published = new JNIByteBuffer(1);
 		
-		FetchSymbolToBuffer(hdlSubscribing,1,buffer_subscribing);
-		FetchSymbolToBuffer(hdlSubscribed,1,buffer_subscribed);
-		FetchSymbolToBuffer(hdlPublishing,1,buffer_publishing);
-		FetchSymbolToBuffer(hdlPublished,1,buffer_published);
+		fetchSymbolToBuffer(new String(symbol_subscribing.getByteArray()),hdlSubscribing,1,buffer_subscribing);
+		fetchSymbolToBuffer(new String(symbol_subscribed.getByteArray()),hdlSubscribed,1,buffer_subscribed);
+		fetchSymbolToBuffer(new String(symbol_publishing.getByteArray()),hdlPublishing,1,buffer_publishing);
+		fetchSymbolToBuffer(new String(symbol_published.getByteArray()),hdlPublished,1,buffer_published);
 		
-		hdlSizeOfAdsShell = FetchSymbolHdl(handle_sizeOfAdsShell, symbol_sizeOfAdsShell);
-		FetchSymbolToBuffer(hdlSizeOfAdsShell,2,buffer_sizeOfAdsShell);
+		hdlSizeOfAdsShell = fetchSymbolHdl(handle_sizeOfAdsShell, symbol_sizeOfAdsShell);
+		fetchSymbolToBuffer(new String(symbol_sizeOfAdsShell.getByteArray()),hdlSizeOfAdsShell,2,buffer_sizeOfAdsShell);
 		sizeOfAdsShell = Convert.ByteArrToShort(buffer_sizeOfAdsShell.getByteArray());
 		
 		//Debug 
-		System.out.println("Size of subscriptions: " + sizeOfSubscriptions);
-		System.out.println("Size of publications: "+ sizeOfPublications);
-		System.out.println("Publication counter: "+Convert.ByteArrToShort(buffer_publicationCounter.getByteArray()));
-		System.out.println("Subscription counter: "+Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray()));
+		System.out.println("[PlcFetcher.ready] Size of subscriptions: " + sizeOfSubscriptions);
+		System.out.println("[PlcFetcher.ready] Size of publications: "+ sizeOfPublications);
+		System.out.println("[PlcFetcher.ready] Publication counter: "+Convert.ByteArrToShort(buffer_publicationCounter.getByteArray()));
+		System.out.println("[PlcFetcher.ready] Subscription counter: "+Convert.ByteArrToShort(buffer_subscriptionCounter.getByteArray()));
 		
 	}
 
