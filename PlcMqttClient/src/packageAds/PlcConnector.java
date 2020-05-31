@@ -297,6 +297,24 @@ public class PlcConnector extends StateMachine  {
 		
 	}
 
+	@Override
+	protected void shuttingDown() throws Throwable {
+		
+		switch(shutDownStep)
+		{
+		case 00:
+			callObject.removeListenerCallbackAdsState(listener);
+			AdsCallDllFunction.adsPortClose();
+			connected = false;
+			bShutDownOk = true;
+			break;
+			
+		case 10:
+			break;
+		}
+		
+	}
+
 }
 
 class AdsConnectorListener implements CallbackListenerAdsState {

@@ -317,6 +317,12 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		
 	}
 
+	@Override
+	protected void shuttingDown() throws Throwable {
+		// TODO Auto-generated method stub
+		
+	}
+
 
 }
 

@@ -419,7 +419,24 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 		}
 		
 	}
+	
+	@Override
+	protected void shuttingDown() throws Throwable {
+		// TODO Auto-generated method stub
+		super.shuttingDown();
 		
+		switch(shutDownStep)
+		{
+		case 00:
+			callObject.removeListenerCallbackAdsState(this);
+			bShutDownOk = true;
+			shutDownStep = 10;
+			break;
+			
+		case 10:
+			break;
+		}
+	}
 	@Override
 	public void connectionLost(Throwable cause) {
 		super.connectionLost(cause);

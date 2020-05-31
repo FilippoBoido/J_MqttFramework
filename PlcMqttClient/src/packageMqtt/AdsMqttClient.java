@@ -13,6 +13,7 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import de.beckhoff.jni.JNIByteBuffer;
+import de.beckhoff.jni.tcads.AdsCallDllFunction;
 import packageSystem.StateMachine;
 
 public class AdsMqttClient extends StateMachine{
@@ -263,6 +264,32 @@ public class AdsMqttClient extends StateMachine{
 	        }
 			bErrorOk = true;
 			errorStep = 10;
+			break;
+			
+		case 10:
+			break;
+		}
+		
+	}
+
+	@Override
+	protected void shuttingDown() throws Throwable {
+		switch(shutDownStep)
+		{
+		case 00:
+			try {
+				if(mqttClient != null)
+				{
+					mqttClient.disconnect();
+					System.out.println("Mqtt client disconnected.");
+					mqttClient.close();
+					System.out.println("Mqtt client closed.");
+				}
+			} catch(Exception me) {
+				
+	            me.printStackTrace();
+	        }
+			bShutDownOk = true;
 			break;
 			
 		case 10:

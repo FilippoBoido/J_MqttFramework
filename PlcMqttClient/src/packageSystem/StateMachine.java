@@ -9,7 +9,8 @@ public abstract class StateMachine {
 	    eBusy,
 	    eIdle,
 	    eWaiting,
-	    eError
+	    eError,
+	    eShutDown
 	  }
 	
 	
@@ -19,14 +20,16 @@ public abstract class StateMachine {
 						bBusyOk = false,
 						bErrorOk = false,
 						bIdleOk = false,
-						bWaitOk = false;
-					
+						bWaitOk = false,
+						bShutDownOk= false;
+	
 	protected int 	errorType,
 					busyStep,
 					readyStep,
 					waitStep,
 					errorStep,
 					initStep,
+					shutDownStep,
 					idleStep;
 	
 	protected String exceptionMessage;
@@ -45,6 +48,7 @@ public abstract class StateMachine {
 		bErrorOk = false;
 		bIdleOk = false;
 		bWaitOk = false;
+		bShutDownOk = false;
 	}
 	
 	private void resetSteps()
@@ -84,7 +88,10 @@ public abstract class StateMachine {
 			return "Idle";
 			
 		case 7: 
-			return "Error";			
+			return "Error";	
+			
+		case 8: 
+			return "Shutting down";	
 			
 		}
 			
@@ -126,6 +133,10 @@ public abstract class StateMachine {
 			case eError:
 				error();
 				break;	
+				
+			case eShutDown:
+				shuttingDown();
+				break;	
 		}
 	}
 	
@@ -137,7 +148,7 @@ public abstract class StateMachine {
 	protected abstract void idle() throws Throwable;
 	protected abstract void waiting() throws Throwable;
 	protected abstract void error() throws Throwable;
-	
+	protected abstract void shuttingDown() throws Throwable;
 	
 	public boolean isInit()
 	{
@@ -167,6 +178,11 @@ public abstract class StateMachine {
 	public boolean isIdle()
 	{
 		return (E_StateMachine.eIdle == eStateMachine);
+	}
+	
+	public boolean isShuttingDown()
+	{
+		return (E_StateMachine.eShutDown == eStateMachine);
 	}
 	
 	public boolean isInitOk()
@@ -199,6 +215,10 @@ public abstract class StateMachine {
 		return bIdleOk;
 	}
 	
+	public boolean isShutDownOk()
+	{
+		return bShutDownOk;
+	}
 	
 	
 	public boolean isWaiting()
@@ -299,6 +319,10 @@ public abstract class StateMachine {
 		return false;
 	}
 	
+	public void shutDown()
+	{
+		changeState(E_StateMachine.eShutDown);
+	}
 	public boolean waitLoop()
 	{
 		if(eStateMachine == E_StateMachine.eBusy)
