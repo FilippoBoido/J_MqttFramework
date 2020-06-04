@@ -323,6 +323,7 @@ public abstract class StateMachine {
 	{
 		changeState(E_StateMachine.eShutDown);
 	}
+	
 	public boolean waitLoop()
 	{
 		if(eStateMachine == E_StateMachine.eBusy)

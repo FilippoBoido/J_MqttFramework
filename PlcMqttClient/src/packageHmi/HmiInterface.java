@@ -226,11 +226,11 @@ public class HmiInterface extends Application implements Runnable, HmiSignaller{
 
 	private Object close(HmiPlug hmiPlug) {
 		
-		System.out.println("[Main.close] Closing app");
+		System.out.println("[HmiInterface.close] Closing app");
 		
 		if(hmiPlug == null)
 		{
-			System.out.println("[Main.close] HmiPlug is null.");
+			System.out.println("[HmiInterface.close] HmiPlug is null.");
 			return null;
 		}
 		
@@ -250,7 +250,7 @@ public class HmiInterface extends Application implements Runnable, HmiSignaller{
 
 	private Object minimize(Stage stage) {
 		stage.setIconified(true);
-		System.out.println("[Main.minimize] App minimized");
+		System.out.println("[HmiInterface.minimize] App minimized");
 		return null;
 	}
 	

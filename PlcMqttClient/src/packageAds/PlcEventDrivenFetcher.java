@@ -412,10 +412,12 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 		switch(errorStep)
 		{
 		case 00:
+			
 			callObject.removeListenerCallbackAdsState(this);
+			errorStep = 10;
 			
 			bErrorOk = true;
-			errorStep = 10;
+			
 			break;
 			
 		case 10:
@@ -432,9 +434,12 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 		switch(shutDownStep)
 		{
 		case 00:
+			
 			callObject.removeListenerCallbackAdsState(this);
-			bShutDownOk = true;
 			shutDownStep = 10;
+			
+			bShutDownOk = true;
+			
 			break;
 			
 		case 10:

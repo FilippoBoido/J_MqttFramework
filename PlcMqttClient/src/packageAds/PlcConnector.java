@@ -342,12 +342,14 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			callObject.removeListenerCallbackAdsState(this);
 			//callObject.removeListenerCallbackAdsRouter(routerListener);
 			//AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
-			timer.cancel();
+			if(timer != null)
+				timer.cancel();
 			AdsCallDllFunction.adsPortClose();
 			connectionLost = false;
-			connected = false;
+			connected = false;	
 			errorStep = 10;
 			bErrorOk = true;
+			
 			break;
 			
 		case 10:
@@ -362,14 +364,19 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 		switch(shutDownStep)
 		{
 		case 00:
+			
 			callObject.removeListenerCallbackAdsState(this);
 			//callObject.removeListenerCallbackAdsRouter(routerListener);
 			//AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
-			timer.cancel();
+			if(timer != null)
+				timer.cancel();		
 			
-			AdsCallDllFunction.adsPortClose();
+			AdsCallDllFunction.adsPortClose();		
+			connectionLost = false;
 			connected = false;
-			bShutDownOk = true;
+			shutDownStep = 10;			
+			bShutDownOk = true;		
+			
 			break;
 			
 		case 10:

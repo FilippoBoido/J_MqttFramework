@@ -100,7 +100,7 @@ public class MainLauncher implements HmiPlug,Runnable{
 	public void run() {
 		
 		String generatedString = randomAlphaNumeric(8);
-		System.out.println("[Main.main] Randomly generated client id: " + generatedString);
+		System.out.println("[MainLauncher.main] Randomly generated client id: " + generatedString);
 		adsMqttClient = new AdsMqttClient("tcp://192.168.2.107:1883", generatedString);
 		
 		AmsAddr addr = new AmsAddr();
@@ -118,7 +118,7 @@ public class MainLauncher implements HmiPlug,Runnable{
 				adsMqttClient.checkStateMachine();
 				shutDown = (plcConnector.isShutDownOk() && plcFetcher.isShutDownOk() && adsMqttClient.isShutDownOk());
 				if(shutDown)
-					System.out.println("[MainLaucher.run] Shutting down");
+					System.out.println("[MainLauncher.run] Shutting down");
 			} catch ( Throwable e ) {
 				// TODO Auto-generated catch block
 				if(e.getCause() instanceof AdsConnectionException)
@@ -135,6 +135,10 @@ public class MainLauncher implements HmiPlug,Runnable{
 					e.printStackTrace();
 					eMainStep = E_MainStep.SYSTEM_MONITORING_AFTER_EXCEPTION;
 					
+				}
+				else
+				{
+					e.printStackTrace();
 				}
 				
 			} finally

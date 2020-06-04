@@ -171,8 +171,6 @@ public class AdsMqttClient extends StateMachine implements MqttCallback{
 		{
 		case 00:
 						
-		//try {
-		
 			persistence = new MemoryPersistence();  
 			try {
 				mqttClient = new MqttClient(broker, clientId, persistence);
@@ -188,20 +186,11 @@ public class AdsMqttClient extends StateMachine implements MqttCallback{
             mqttClient.connect(connOpts);
             System.out.println("[AdsMqttClient] Connected");
             connected = true;
-	    
-	        /*
-	        } catch(MqttException me) {
-	        	
-	            System.out.println("reason "+me.getReasonCode());
-	            System.out.println("msg "+me.getMessage());
-	            System.out.println("loc "+me.getLocalizedMessage());
-	            System.out.println("cause "+me.getCause());
-	            System.out.println("excep "+me);
-	            me.printStackTrace();
-	        }
-			*/
+            
+            readyStep = 10;
+            
 			bReadyOk = true;
-			readyStep = 10;
+			
 			break;
 		}
 		
@@ -293,6 +282,7 @@ public class AdsMqttClient extends StateMachine implements MqttCallback{
 				
 	            me.printStackTrace();
 	        }
+			shutDownStep = 10;
 			bShutDownOk = true;
 			break;
 			
