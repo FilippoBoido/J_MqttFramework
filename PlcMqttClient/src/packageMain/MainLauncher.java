@@ -6,7 +6,7 @@ import packageAds.PlcEventDrivenFetcher;
 import packageExceptions.AdsConnectionException;
 import packageHmi.HmiInterface;
 import packageHmi.HmiPlug;
-
+import packageHmi.HmiSignaller;
 import packageMqtt.AdsMqttClient;
 
 public class MainLauncher implements HmiPlug,Runnable{
@@ -32,6 +32,7 @@ public class MainLauncher implements HmiPlug,Runnable{
 	static AdsMqttClient adsMqttClient;
 	static PlcConnector plcConnector; 
 	static PlcEventDrivenFetcher plcFetcher;
+	private HmiSignaller hmiSignaller;
 	
 	boolean shutDown;
 	public MainLauncher()
@@ -48,6 +49,10 @@ public class MainLauncher implements HmiPlug,Runnable{
 		return builder.toString();
 	}
 
+	public void setHmiSignaler(HmiSignaller hmiSignaler)
+	{
+		this.hmiSignaller = hmiSignaler;
+	}
 	
 	@Override
 	public void connect() {
@@ -101,8 +106,7 @@ public class MainLauncher implements HmiPlug,Runnable{
 		AmsAddr addr = new AmsAddr();
 		plcConnector = new PlcConnector(addr);
 		plcFetcher = new PlcEventDrivenFetcher(addr,adsMqttClient);
-		//Set callback for incoming messages
-		adsMqttClient.setCallback(plcFetcher);
+		
 				
 		while(!shutDown)
 		{
@@ -123,13 +127,34 @@ public class MainLauncher implements HmiPlug,Runnable{
 					plcFetcher.fault();
 					adsMqttClient.fault();
 					
+					if(hmiSignaller != null)
+					{
+						hmiSignaller.error();
+					}
+					
 					e.printStackTrace();
 					eMainStep = E_MainStep.SYSTEM_MONITORING_AFTER_EXCEPTION;
 					
 				}
 				
+			} finally
+			{
+				if(plcConnector.connectionLost() || adsMqttClient.mqttConnectionLost())
+				{
+					plcConnector.fault();
+					plcFetcher.fault();
+					adsMqttClient.fault();
+					
+					if(hmiSignaller != null)
+					{
+						hmiSignaller.error();
+					}
+					
+					eMainStep = E_MainStep.SYSTEM_MONITORING_AFTER_EXCEPTION;
+				}
 			}
-						
+				
+			
 			switch(eMainStep)
 			{
 			
@@ -147,6 +172,10 @@ public class MainLauncher implements HmiPlug,Runnable{
 					
 					if(plcConnector.isReadyOk())
 					{
+						if(hmiSignaller != null)
+						{
+							hmiSignaller.connecting();
+						}
 						plcConnector.execute();
 						eMainStep = E_MainStep.EXECUTE_PLC_CONNECTOR;
 					}
@@ -157,6 +186,7 @@ public class MainLauncher implements HmiPlug,Runnable{
 					
 					if(plcConnector.isConnected())
 					{
+						
 						plcFetcher.start();
 						plcConnector.waitLoop();
 						eMainStep = E_MainStep.START_PLC_FETCHER;
@@ -189,6 +219,10 @@ public class MainLauncher implements HmiPlug,Runnable{
 					
 					if(adsMqttClient.isReadyOk())
 					{
+						if(hmiSignaller != null)
+						{
+							hmiSignaller.connected();
+						}
 						adsMqttClient.execute();
 						eMainStep = E_MainStep.EXECUTE_MQTT_CLIENT;
 					}

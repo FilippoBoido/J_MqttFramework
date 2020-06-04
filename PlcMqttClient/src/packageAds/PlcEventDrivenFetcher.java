@@ -20,7 +20,7 @@ import packageExceptions.AdsConnectionException;
 import packageMqtt.AdsMqttClient;
 
 
-public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,CallbackListenerAdsState {
+public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListenerAdsState {
 
 	
 	AdsNotificationAttrib attr = new AdsNotificationAttrib();
@@ -47,11 +47,14 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 			adsPublished,
     		subscribingNotificationSignal,
     		publishingNotificationSignal;
+    		
     
 	int adsSubscriptionCounter,
 		adsPublicationCounter,
 		adsPublishingStep,
 		adsSubscribingStep;
+	
+	
 	
 	public PlcEventDrivenFetcher(AmsAddr addr, AdsMqttClient adsMqttClient) {
 		super(addr, adsMqttClient);
@@ -320,9 +323,9 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 				
 		}
 		
-		if(!adsMessageList.isEmpty())
+		if(!adsMqttClient.getAdsMessageList().isEmpty())
 		{
-			AdsMessage adsMessage = adsMessageList.remove(0);
+			AdsMessage adsMessage = adsMqttClient.getAdsMessageList().remove(0);
 			//Search the topic in the list of subscriptions
 			byte[] locTopicByteArr = new byte[9];
 			byte[] locPayloadByteArr = new byte[34];
@@ -410,6 +413,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 		{
 		case 00:
 			callObject.removeListenerCallbackAdsState(this);
+			
 			bErrorOk = true;
 			errorStep = 10;
 			break;
@@ -436,22 +440,6 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements MqttCallback,Ca
 		case 10:
 			break;
 		}
-	}
-	@Override
-	public void connectionLost(Throwable cause) {
-		super.connectionLost(cause);
-		
-	}
-
-	
-	public void messageArrived(String topic, MqttMessage message) throws Exception {
-		super.messageArrived(topic, message);
-	}
-
-	@Override
-	public void deliveryComplete(IMqttDeliveryToken token) {
-		super.deliveryComplete(token);
-		
 	}
 	
 	public synchronized void onEvent(AmsAddr addr,AdsNotificationHeader notification,long user) {

@@ -17,7 +17,7 @@ import java.lang.Integer;
 import java.util.ArrayList;
 
 
-public class PlcFetcher extends StateMachine implements MqttCallback {
+public class PlcFetcher extends StateMachine {
 	
 	//The paths of the packages that need to be fetched, here.
 	protected static final String mqttSubscriptionStorage = "ADS.fbMqttClient.aAdsSubscriptionStorage";
@@ -101,7 +101,6 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 	byte[] topicByteArr = new byte[9];
 	byte[] payloadByteArr = new byte[34];
 	
-	ArrayList<AdsMessage> adsMessageList = new ArrayList<AdsMessage> ();
 
 	public PlcFetcher(AmsAddr addr,AdsMqttClient adsMqttClient) {
 		super();
@@ -295,27 +294,6 @@ public class PlcFetcher extends StateMachine implements MqttCallback {
 		
 	}
 
-
-	@Override
-	public void connectionLost(Throwable cause) {
-		// TODO Auto-generated method stub
-		
-	}
-
-
-	@Override
-	public void messageArrived(String topic, MqttMessage message) throws Exception {
-		
-		adsMessageList.add(new AdsMessage(topic,message));
-		
-	}
-
-
-	@Override
-	public void deliveryComplete(IMqttDeliveryToken token) {
-		// TODO Auto-generated method stub
-		
-	}
 
 	@Override
 	protected void shuttingDown() throws Throwable {

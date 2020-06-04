@@ -2,9 +2,11 @@ package packageMqtt;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.TimeZone;
 
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -14,9 +16,10 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import de.beckhoff.jni.JNIByteBuffer;
 import de.beckhoff.jni.tcads.AdsCallDllFunction;
+import packageAds.AdsMessage;
 import packageSystem.StateMachine;
 
-public class AdsMqttClient extends StateMachine{
+public class AdsMqttClient extends StateMachine implements MqttCallback{
 	
 	public enum E_PublishMode
 	{
@@ -30,7 +33,11 @@ public class AdsMqttClient extends StateMachine{
 	private int qos  = 2;    
 	private MemoryPersistence persistence;
 	private MqttClient mqttClient;
-	private MqttCallback mqttCallback;
+	
+	private boolean mqttConnectionLost;
+	
+	private ArrayList<AdsMessage> adsMessageList = new ArrayList<AdsMessage> ();
+	
 	public MqttClient getMqttClient() {
 		return mqttClient;
 	}
@@ -43,22 +50,17 @@ public class AdsMqttClient extends StateMachine{
 		return connected;
 	}
 
+	public ArrayList<AdsMessage> getAdsMessageList()
+	{
+		return adsMessageList;
+	}
+	
 	public AdsMqttClient(String broker, String clientId) 
 	{		
 		this.broker = broker;
 		this.clientId = clientId;	
 	}
-	
-	public AdsMqttClient(String broker, String clientId, MqttCallback mqttCallback) 
-	{	
-		this(broker,clientId);
-		this.mqttCallback = mqttCallback;	
-	}
-	
-	public void setCallback(MqttCallback mqttCallback)
-	{
-		this.mqttCallback = mqttCallback;
-	}
+
 	
 	public boolean subscribe(String topic)
 	{
@@ -174,7 +176,7 @@ public class AdsMqttClient extends StateMachine{
 			persistence = new MemoryPersistence();  
 			try {
 				mqttClient = new MqttClient(broker, clientId, persistence);
-				mqttClient.setCallback(mqttCallback);
+				mqttClient.setCallback(this);
 			} catch (MqttException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -221,6 +223,7 @@ public class AdsMqttClient extends StateMachine{
 
 	@Override
 	protected void idle() {
+		
 		try {
 			mqttClient.disconnect();
 			System.out.println("Mqtt client disconnected.");
@@ -250,6 +253,7 @@ public class AdsMqttClient extends StateMachine{
 		switch(errorStep)
 		{
 		case 00:
+			mqttConnectionLost = false;
 			try {
 				if(mqttClient != null)
 				{
@@ -295,6 +299,30 @@ public class AdsMqttClient extends StateMachine{
 		case 10:
 			break;
 		}
+		
+	}
+
+	public boolean mqttConnectionLost()
+	{
+		return mqttConnectionLost;
+	}
+	
+	@Override
+	public void connectionLost(Throwable cause) {
+		
+		mqttConnectionLost = true;
+		
+	}
+
+	@Override
+	public void messageArrived(String topic, MqttMessage message) throws Exception {
+		adsMessageList.add(new AdsMessage(topic,message));
+		
+	}
+
+	@Override
+	public void deliveryComplete(IMqttDeliveryToken token) {
+		// TODO Auto-generated method stub
 		
 	}
 	

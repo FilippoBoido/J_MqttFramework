@@ -30,13 +30,14 @@ import javafx.geometry.Rectangle2D;
 import javafx.stage.Screen;
 
 @SuppressWarnings("restriction")
-public class HmiInterface extends Application implements Runnable{
+public class HmiInterface extends Application implements Runnable, HmiSignaller{
 	
 	double xOffset,yOffset;
 	boolean showWindow = true;
 	TrayIcon trayIcon;
 	SystemTray tray;
-
+	static Node colorSignal;
+	String originalStyle;
 	Rectangle2D screenBounds;
 	
 	static HmiPlug hmiPlug;
@@ -135,8 +136,7 @@ public class HmiInterface extends Application implements Runnable{
 			
 			ArrayList<Node> nodes = getAllNodes(root);
 			
-			
-			
+		
 			for(Node node : nodes)
 			{
 				if(node.getId() == null)
@@ -149,20 +149,26 @@ public class HmiInterface extends Application implements Runnable{
 					
 					node.addEventHandler(ActionEvent.ACTION, event -> minimize(stage));
 					break;
-					
-					
+										
 				case "closeId":
 					
 					node.addEventHandler(ActionEvent.ACTION, event -> close(hmiPlug));
 					break;
+					
 				case "resetId":
 					
 					node.addEventHandler(ActionEvent.ACTION, event -> hmiPlug.reset());
 					break;	
+					
 				case "connectId":
 					
 					node.addEventHandler(ActionEvent.ACTION, event -> hmiPlug.connect());
 					break;
+					
+				case "colorSignalId":
+					originalStyle = node.getStyle();
+					colorSignal = node;
+					break;	
 					
 				case "stackPaneId":
 					
@@ -198,6 +204,8 @@ public class HmiInterface extends Application implements Runnable{
 					    	stage.setY(setY);
 					    }
 					});
+					
+					break;
 				}
 			}
 			
@@ -252,5 +260,40 @@ public class HmiInterface extends Application implements Runnable{
 	public void run() {
 		launch();
 		
+	}
+
+	@Override
+	public void connectionLost() {
+		System.out.println("[HmiInterface.connectionLostSignal] Filling colorSignal with original style");
+		if(colorSignal != null)
+			colorSignal.setStyle(originalStyle);		
+	}
+
+	@Override
+	public void disconnected() {
+		System.out.println("[HmiInterface.disconnectedSignal] Filling colorSignal with original style");
+		if(colorSignal != null)
+			colorSignal.setStyle(originalStyle);		
+	}
+
+	@Override
+	public void error() {
+		System.out.println("[HmiInterface.errorSignal] Filling colorSignal red");
+		if(colorSignal != null)
+			colorSignal.setStyle("-fx-background-color: tomato;");		
+	}
+
+	@Override
+	public void connected() {
+		System.out.println("[HmiInterface.connectedSignal] is colorSignal null? " + (colorSignal==null));
+		if(colorSignal != null)
+			colorSignal.setStyle("-fx-background-color: limegreen;");		
+	}
+
+	@Override
+	public void connecting() {
+		System.out.println("[HmiInterface.connectedSignal] Filling colorSignal yellow");
+		if(colorSignal != null)
+			colorSignal.setStyle("-fx-background-color: lightgoldenrodyellow;");		
 	}
 }

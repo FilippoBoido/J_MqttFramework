@@ -10,11 +10,16 @@ public class Main  {
 		
 		MainLauncher mainLauncher = new MainLauncher();
 		Thread mainLauncherThread = new Thread(mainLauncher);
-		mainLauncherThread.start();
 		
 		HmiInterface hmiInterface = new HmiInterface(mainLauncher);
 		Thread hmiInterfaceThread = new Thread(hmiInterface);
+		
+		mainLauncher.setHmiSignaler(hmiInterface);
+		
+		mainLauncherThread.start();
 		hmiInterfaceThread.start();
+		
+	
 		
 		try {
 			mainLauncherThread.join();
