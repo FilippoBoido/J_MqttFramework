@@ -239,8 +239,7 @@ public class HmiInterface extends Application implements Runnable, HmiSignaller{
 		tray.remove(trayIcon);
 		
 		System.out.println("[HmiInterface.close] hmiPlug close signale sent");
-		while(!hmiPlug.isClosed());
-		System.out.println("[HmiInterface.close] hmiPlug closed signal received");
+
 		
 		Platform.exit();
 		

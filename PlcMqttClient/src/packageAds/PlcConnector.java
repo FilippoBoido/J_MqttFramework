@@ -1,6 +1,7 @@
 package packageAds;
 
 import java.util.Date;
+import java.util.Timer;
 
 import de.beckhoff.jni.AdsConstants;
 import de.beckhoff.jni.Convert;
@@ -17,7 +18,7 @@ import de.beckhoff.jni.tcads.CallbackListenerAdsState;
 import packageExceptions.AdsConnectionException;
 import packageSystem.StateMachine;
 
-public class PlcConnector extends StateMachine implements CallbackListenerAdsState  {
+public class PlcConnector extends StateMachine implements CallbackListenerAdsState ,CheckConnectionPlug {
 	
 
 	long err;
@@ -45,17 +46,17 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 	AdsNotificationAttrib attr = new AdsNotificationAttrib();
 	AdsNotificationAttrib checkConnectionAttr = new AdsNotificationAttrib();
 	AdsNotificationAttrib checkRouterAttr = new AdsNotificationAttrib();
-    // Create and add listener
-	AdsConnectorListener listener; 
-	AdsConnectorListener routerListener;
+   
     AdsCallbackObject callObject = new AdsCallbackObject();
     
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
 	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.sDateTime";
 	private static final String test = "MAIN.bTest";
 	
-	private int hdlBuffToInt = 0;
+	private int plcConnectedIntHdl = 0;
 	private boolean connectionLost;
+	
+	Timer timer;
 	
 	public PlcConnector(AmsAddr addr)
 	{
@@ -76,19 +77,12 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 	    attr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
 	    attr.setDwChangeFilter(10000000);   // 1 sec
 	    attr.setNMaxDelay(10000000);        // 1 sec
-	    
-	    checkRouterAttr.setCbLength(2);
-	    checkRouterAttr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
-	    checkRouterAttr.setNMaxDelay(0);
-	    checkRouterAttr.setDwChangeFilter(0); 
-	    
+
 	    checkConnectionAttr.setCbLength(1);
 	    checkConnectionAttr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
 	    checkConnectionAttr.setDwChangeFilter(10000000);   // 1 sec
 	    checkConnectionAttr.setNMaxDelay(10000000);        // 1 sec
 	    
-	    checkConnectorNotification = new JNILong();
-	    checkRouterNotification = new JNILong();
 	    
 		plcConnectedHdlBuf = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);	
 		plcConnectedSymBuf = new JNIByteBuffer(plcConnected.getBytes());
@@ -202,9 +196,6 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			
 			hdlLifePkgBuffToInt = Convert.ByteArrToInt(lifePkgHandle.getByteArray());
 			lifePkgNotification = new JNILong(hdlLifePkgBuffToInt);
-			//listener = new AdsConnectorListener(hdlLifePkgBuffToInt);
-			//callObject.addListenerCallbackAdsState(listener);
-			// Create notificationHandle
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
 			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
@@ -220,7 +211,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			}
 			
 			// Handle: byte[] to int Convert the bytearray handle to an int and feed it to the adsSyncWriteReq
-			hdlBuffToInt = Convert.ByteArrToInt(plcConnectedHdlBuf.getByteArray());
+			plcConnectedIntHdl = Convert.ByteArrToInt(plcConnectedHdlBuf.getByteArray());
 			
 			// Write value by handle
 			err = AdsCallDllFunction
@@ -228,7 +219,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 					(
 						addr,
 		                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-		                hdlBuffToInt,
+		                plcConnectedIntHdl,
 		                0x1,
 		                new JNIByteBuffer(Convert.BoolToByteArr(true))
 	                );
@@ -242,15 +233,12 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			
 			// Read value by handle
 			//Read the value back and check if signal succresfully transfered (true)
-			err = AdsCallDllFunction
-					.adsSyncReadReq
-					(
-						addr,
-		                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
-		                hdlBuffToInt,
-		                0x1,
-		                plcConnectedDataBuf
-	                );
+			err = AdsCallDllFunction.adsSyncReadReq(
+					addr,
+	                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
+	                plcConnectedIntHdl,
+	                0x1,
+	                plcConnectedDataBuf);
 			
 			if(err!=0)
 			{					
@@ -280,13 +268,14 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 		//********************************************************************************************************
 		case 10:
 			
-			callObject.addListenerCallbackAdsState(this);
+			
+			checkConnectorNotification = new JNILong(plcConnectedIntHdl);
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
-			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-			        hdlBuffToInt,        	// IndexOffset
-			        checkConnectionAttr,       		// The defined AdsNotificationAttrib object
-			        hdlBuffToInt,         	// Choose arbitrary number
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,    	// IndexGroup
+			        plcConnectedIntHdl,        			// IndexOffset
+			        checkConnectionAttr,       						// The defined AdsNotificationAttrib object
+			        plcConnectedIntHdl,         			// Choose arbitrary number
 			        checkConnectorNotification);
 			
 			if(err!=0) { 
@@ -295,19 +284,19 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 			}
 			
+			callObject.addListenerCallbackAdsState(this);
+			//AdsCallDllFunction.adsAmsRegisterRouterNotification();
+			//routerListener = new AdsConnectorListener();
+			//callObject.addListenerCallbackAdsRouter(routerListener);
 			
-			AdsCallDllFunction.adsAmsRegisterRouterNotification();
-			routerListener = new AdsConnectorListener();
-			callObject.addListenerCallbackAdsRouter(routerListener);
 			
-			
-			
+			/*
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
 			        AdsCallDllFunction.ADSIGRP_DEVICE_DATA,     // IndexGroup
-			        AdsCallDllFunction.ADSIOFFS_DEVDATA_DEVSTATE,        	// IndexOffset
+			        AdsCallDllFunction.ADSIOFFS_DEVDATA_ADSSTATE,        	// IndexOffset
 			        checkRouterAttr,       		// The defined AdsNotificationAttrib object
-			        AdsCallDllFunction.ADSIOFFS_DEVDATA_DEVSTATE,         	// Choose arbitrary number
+			        AdsCallDllFunction.ADSIOFFS_DEVDATA_ADSSTATE,         	// Choose arbitrary number
 			        checkRouterNotification);
 			
 			if(err!=0) { 
@@ -315,7 +304,10 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 				exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
 			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 			}
-			callObject.addListenerCallbackAdsState(this);
+			*/
+			timer = new Timer();
+			
+			timer.schedule( new CheckConnectionTask(this, plcConnectedIntHdl, addr, plcConnectedDataBuf), 0, 1000 );
 			connected = true;
 			bBusyOk = true;
 			break;
@@ -348,8 +340,9 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 		case 00:
 			
 			callObject.removeListenerCallbackAdsState(this);
-			callObject.removeListenerCallbackAdsRouter(routerListener);
-			AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
+			//callObject.removeListenerCallbackAdsRouter(routerListener);
+			//AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
+			timer.cancel();
 			AdsCallDllFunction.adsPortClose();
 			connectionLost = false;
 			connected = false;
@@ -370,8 +363,10 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 		{
 		case 00:
 			callObject.removeListenerCallbackAdsState(this);
-			callObject.removeListenerCallbackAdsRouter(routerListener);
-			AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
+			//callObject.removeListenerCallbackAdsRouter(routerListener);
+			//AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
+			timer.cancel();
+			
 			AdsCallDllFunction.adsPortClose();
 			connected = false;
 			bShutDownOk = true;
@@ -384,25 +379,38 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 	}
 
 	@Override
-	public void onEvent(AmsAddr addr, AdsNotificationHeader notification,long user) {
-		if((int) user == hdlBuffToInt)
+	public synchronized void onEvent(AmsAddr addr, AdsNotificationHeader notification,long user) {
+		//int test = new Long(user).intValue();
+		//System.out.println("[PlcConnector.onEvent] hdlLifePkgBuffToInt: " + hdlLifePkgBuffToInt + " plcConnectedIntHdl: "+ plcConnectedIntHdl + " user: " + (int) user);
+		//System.out.println("[PlcConnector.onEvent] Notification available - user: " + (int) user + " plcConnectedIntHdl: " + plcConnectedIntHdl);
+		if((int) user  == plcConnectedIntHdl)
     	{
-    		
+			System.out.println("[PlcConnector.onEvent] Notification available: length: " + notification.getData().length);
 			if(Convert.ByteArrToBool(notification.getData()) == false)
 			{
+				System.out.println("[PlcConnector.onEvent] Connection to plc lost"); 
 				connectionLost = true;
 			}
+			else
+				System.out.println("[PlcConnector.onEvent] Connection to plc available"); 
     		
     	}
-		else if((int) user ==  AdsCallDllFunction.ADSIOFFS_DEVDATA_DEVSTATE)
+		else if((int) user == hdlLifePkgBuffToInt)
 		{
-			System.out.println("[AdsConnectorListener.onEvent] argument: " + Convert.ByteArrToShort(notification.getData()));
+			//System.out.println("[PlcConnector.onEvent] LifePkg arrived"); 
 		}
 		
 	}
 
-}
+	@Override
+	public void signalConnectionLoss() {
+		System.out.println("[PlcConnector.signalConnectionLoss] Connection to plc lost"); 
+		connectionLost = true;
+		
+	}
 
+}
+/*
 class AdsConnectorListener implements CallbackListenerAdsRouter {
 	
     public AdsConnectorListener()
@@ -448,3 +456,4 @@ class AdsConnectorListener implements CallbackListenerAdsRouter {
 	}
     
 }
+*/
