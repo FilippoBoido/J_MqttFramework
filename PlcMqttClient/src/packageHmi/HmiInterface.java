@@ -89,7 +89,8 @@ public class HmiInterface extends Application implements Runnable, HmiSignaller{
 		    }
 			screenBounds = Screen.getPrimary().getBounds();
 		    System.out.println(screenBounds);
-		    URL url =  new File("C:/Users/fboid/Documents/JavaFX-Test/PlcAds.png").toURI().toURL();
+		    //URL url =  new File("C:/Users/fboid/Documents/JavaFX-Test/PlcAds.png").toURI().toURL();
+		    URL url = getClass().getResource("/packageResources/PlcAds.png");
 		    Image image = Toolkit.getDefaultToolkit().getImage(url);
 		   
 		    //image dimensions must be 16x16 on windows
@@ -131,8 +132,8 @@ public class HmiInterface extends Application implements Runnable, HmiSignaller{
 		    }
 			
 			
-			Parent root = FXMLLoader.load(new File("C:\\Users\\fboid\\Documents\\JavaFX-Test\\PlcAdsHmi.fxml").toURI().toURL());
-			
+			//Parent root = FXMLLoader.load(new File("C:\\Users\\fboid\\Documents\\JavaFX-Test\\PlcAdsHmi.fxml").toURI().toURL());
+			Parent root = FXMLLoader.load(getClass().getResource("/packageResources/PlcAdsHmi.fxml"));
 			
 			ArrayList<Node> nodes = getAllNodes(root);
 			

@@ -51,7 +51,6 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
     
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
 	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.sDateTime";
-	private static final String test = "MAIN.bTest";
 	
 	private int plcConnectedIntHdl = 0;
 	private boolean connectionLost;
@@ -81,8 +80,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 	    checkConnectionAttr.setCbLength(1);
 	    checkConnectionAttr.setNTransMode(AdsConstants.ADSTRANS_SERVERONCHA);
 	    checkConnectionAttr.setDwChangeFilter(10000000);   // 1 sec
-	    checkConnectionAttr.setNMaxDelay(10000000);        // 1 sec
-	    
+	    checkConnectionAttr.setNMaxDelay(10000000);        // 1 sec    
 	    
 		plcConnectedHdlBuf = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);	
 		plcConnectedSymBuf = new JNIByteBuffer(plcConnected.getBytes());
@@ -91,10 +89,6 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 		lifePkgHandle = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
 		lifePkgSymBuf = new JNIByteBuffer(lifePackage.getBytes());
 		lifePkgDataBuf = new JNIByteBuffer(89);
-		
-		testHandle = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
-		testSymBuf = new JNIByteBuffer(test.getBytes());
-		testDataBuf = new JNIByteBuffer(1);		
 	
 	}
 
@@ -109,6 +103,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			AdsCallDllFunction.adsPortOpen();
 			
 			err = AdsCallDllFunction.getLocalAddress(addr);
+			//addr.setNetIdString("192.168.2.113.1.1");
 			addr.setPort(851);
 			
 			if(err != 0)
@@ -198,10 +193,10 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			lifePkgNotification = new JNILong(hdlLifePkgBuffToInt);
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
-			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-			        hdlLifePkgBuffToInt,        // IndexOffset
-			        attr,       // The defined AdsNotificationAttrib object
-			        hdlLifePkgBuffToInt,         // Choose arbitrary number
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     	// IndexGroup
+			        hdlLifePkgBuffToInt,        					// IndexOffset
+			        attr,       									// The defined AdsNotificationAttrib object
+			        hdlLifePkgBuffToInt,         					// Choose arbitrary number
 			        lifePkgNotification);
 			
 			if(err!=0) {     
@@ -232,7 +227,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			}
 			
 			// Read value by handle
-			//Read the value back and check if signal succresfully transfered (true)
+			// Read the value back and check if signal succresfully transfered (true)
 			err = AdsCallDllFunction.adsSyncReadReq(
 					addr,
 	                AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
@@ -273,9 +268,9 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
 			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,    	// IndexGroup
-			        plcConnectedIntHdl,        			// IndexOffset
+			        plcConnectedIntHdl,        						// IndexOffset
 			        checkConnectionAttr,       						// The defined AdsNotificationAttrib object
-			        plcConnectedIntHdl,         			// Choose arbitrary number
+			        plcConnectedIntHdl,         					// Choose arbitrary number
 			        checkConnectorNotification);
 			
 			if(err!=0) { 
@@ -285,30 +280,12 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			}
 			
 			callObject.addListenerCallbackAdsState(this);
-			//AdsCallDllFunction.adsAmsRegisterRouterNotification();
-			//routerListener = new AdsConnectorListener();
-			//callObject.addListenerCallbackAdsRouter(routerListener);
 			
-			
-			/*
-			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-			        addr,
-			        AdsCallDllFunction.ADSIGRP_DEVICE_DATA,     // IndexGroup
-			        AdsCallDllFunction.ADSIOFFS_DEVDATA_ADSSTATE,        	// IndexOffset
-			        checkRouterAttr,       		// The defined AdsNotificationAttrib object
-			        AdsCallDllFunction.ADSIOFFS_DEVDATA_ADSSTATE,         	// Choose arbitrary number
-			        checkRouterNotification);
-			
-			if(err!=0) { 
-				
-				exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
-			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
-			}
-			*/
 			timer = new Timer();
 			
 			timer.schedule( new CheckConnectionTask(this, plcConnectedIntHdl, addr, plcConnectedDataBuf), 0, 1000 );
 			connected = true;
+			busyStep = 20;
 			bBusyOk = true;
 			break;
 			
@@ -340,8 +317,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 		case 00:
 			
 			callObject.removeListenerCallbackAdsState(this);
-			//callObject.removeListenerCallbackAdsRouter(routerListener);
-			//AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
+			
 			if(timer != null)
 				timer.cancel();
 			AdsCallDllFunction.adsPortClose();
@@ -366,13 +342,12 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 		case 00:
 			
 			callObject.removeListenerCallbackAdsState(this);
-			//callObject.removeListenerCallbackAdsRouter(routerListener);
-			//AdsCallDllFunction.adsAmsUnRegisterRouterNotification();
+			
 			if(timer != null)
 				timer.cancel();		
 			
 			AdsCallDllFunction.adsPortClose();		
-			connectionLost = false;
+			connectionLost = false; 
 			connected = false;
 			shutDownStep = 10;			
 			bShutDownOk = true;		
@@ -387,9 +362,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 
 	@Override
 	public synchronized void onEvent(AmsAddr addr, AdsNotificationHeader notification,long user) {
-		//int test = new Long(user).intValue();
-		//System.out.println("[PlcConnector.onEvent] hdlLifePkgBuffToInt: " + hdlLifePkgBuffToInt + " plcConnectedIntHdl: "+ plcConnectedIntHdl + " user: " + (int) user);
-		//System.out.println("[PlcConnector.onEvent] Notification available - user: " + (int) user + " plcConnectedIntHdl: " + plcConnectedIntHdl);
+		
 		if((int) user  == plcConnectedIntHdl)
     	{
 			System.out.println("[PlcConnector.onEvent] Notification available: length: " + notification.getData().length);
@@ -410,57 +383,9 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 	}
 
 	@Override
-	public void signalConnectionLoss() {
-		System.out.println("[PlcConnector.signalConnectionLoss] Connection to plc lost"); 
-		connectionLost = true;
-		
+	public void signalConnectionLoss(long errorId) {
+		System.out.println("[PlcConnector.signalConnectionLoss] Connection to plc lost with error id: "+ errorId); 
+		connectionLost = true;		
 	}
 
 }
-/*
-class AdsConnectorListener implements CallbackListenerAdsRouter {
-	
-    public AdsConnectorListener()
-    {
-    	
-    }
-    // Callback function
-    
-	@Override
-	public void onEvent(long arg0) {
-		System.out.println("[AdsConnectorListener.onEvent] argument: " + arg0);
-		switch(new Long(arg0).intValue())
-		{
-		
-		case AdsState.ADSSTATE_STOP:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_STOP");
-			break;
-		case AdsState.ADSSTATE_ERROR:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_ERROR");
-			break;
-		case AdsState.ADSSTATE_IDLE:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_IDLE.");
-			break;
-		case AdsState.ADSSTATE_RUN:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_RUN");
-			break;
-		case AdsState.ADSSTATE_RESET:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_RESET");
-			break;
-		case AdsState.ADSSTATE_SHUTDOWN:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_SHUTDOWN");
-			break;
-		case AdsState.ADSSTATE_START:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_START");
-			break;
-		case AdsState.ADSSTATE_SUSPEND:
-			System.out.println("[AdsConnectorListener.onEvent] ADSSTATE_SUSPEND");
-			break;
-		
-			
-		}
-		
-	}
-    
-}
-*/

@@ -2,5 +2,5 @@ package packageAds;
 
 public interface CheckConnectionPlug {
 
-	public void signalConnectionLoss();
+	public void signalConnectionLoss(long errorId);
 }

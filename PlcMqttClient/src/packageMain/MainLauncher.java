@@ -112,6 +112,13 @@ public class MainLauncher implements HmiPlug,Runnable{
 		{
 			
 			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			try {
 				
 				plcConnector.checkStateMachine();
 				plcFetcher.checkStateMachine();
@@ -243,6 +250,7 @@ public class MainLauncher implements HmiPlug,Runnable{
 					break;	
 					
 				case SYSTEM_MONITORING:		
+					
 					break;
 					
 				case SYSTEM_MONITORING_AFTER_EXCEPTION:		

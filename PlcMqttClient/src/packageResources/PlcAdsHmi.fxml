@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.shape.Rectangle?>
+
+<StackPane fx:id="stackPaneId" maxHeight="350.0" maxWidth="100.0" minHeight="300.0" minWidth="100.0" prefHeight="350.0" prefWidth="100.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <BorderPane fx:id="borderPaneId" maxHeight="-Infinity" prefHeight="400.0" prefWidth="200.0">
+         <top>
+            <HBox alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="30.0" minWidth="100.0" BorderPane.alignment="CENTER">
+               <children>
+                  <Button fx:id="minimizeId" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="30.0" mnemonicParsing="false" text="-" HBox.hgrow="ALWAYS" />
+                  <Button fx:id="maximizeId" alignment="CENTER" disable="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="30.0" mnemonicParsing="false" text="+" HBox.hgrow="ALWAYS" />
+                  <Button fx:id="closeId" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="30.0" mnemonicParsing="false" text="x" HBox.hgrow="ALWAYS" />
+               </children>
+            </HBox>
+         </top>
+         <center>
+            <GridPane fx:id="colorSignalId" maxHeight="300.0" maxWidth="100.0" BorderPane.alignment="CENTER">
+               <columnConstraints>
+                  <ColumnConstraints hgrow="SOMETIMES" maxWidth="200.0" minWidth="10.0" percentWidth="100.0" prefWidth="200.0" />
+               </columnConstraints>
+               <rowConstraints>
+                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+               </rowConstraints>
+               <children>
+                  <Button fx:id="connectId" maxHeight="100.0" maxWidth="100.0" mnemonicParsing="false" text="Connect" />
+                  <Button fx:id="resetId" maxHeight="100.0" maxWidth="100.0" mnemonicParsing="false" text="Reset" GridPane.rowIndex="1" />
+               </children>
+            </GridPane>
+         </center>
+         <bottom>
+            <HBox alignment="CENTER" prefHeight="10.0" prefWidth="100.0" BorderPane.alignment="CENTER">
+               <children>
+                  <Rectangle arcHeight="5.0" arcWidth="5.0" fill="#f2f3f4" height="20.0" stroke="BLACK" strokeType="INSIDE" width="20.0" />
+                  <Rectangle arcHeight="5.0" arcWidth="5.0" fill="#f2f3f4" height="20.0" stroke="BLACK" strokeType="INSIDE" width="20.0" />
+                  <Rectangle arcHeight="5.0" arcWidth="5.0" fill="#f2f3f4" height="20.0" stroke="BLACK" strokeType="INSIDE" width="20.0" />
+                  <Rectangle arcHeight="5.0" arcWidth="5.0" fill="#f2f3f4" height="20.0" stroke="BLACK" strokeType="INSIDE" width="20.0" />
+                  <Rectangle arcHeight="5.0" arcWidth="5.0" fill="#f2f3f4" height="20.0" stroke="BLACK" strokeType="INSIDE" width="20.0" />
+               </children>
+            </HBox>
+         </bottom>
+      </BorderPane>
+   </children>
+</StackPane>

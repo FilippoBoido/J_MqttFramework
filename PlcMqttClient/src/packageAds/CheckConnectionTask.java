@@ -34,7 +34,7 @@ public class CheckConnectionTask extends java.util.TimerTask {
 		
 		if(err!=0)
 		{								
-			checkConnectionPlug.signalConnectionLoss();
+			checkConnectionPlug.signalConnectionLoss(err);
 			
 		}
 		
