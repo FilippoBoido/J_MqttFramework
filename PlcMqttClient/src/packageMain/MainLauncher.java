@@ -1,5 +1,15 @@
 package packageMain;
 
+import java.io.File;
+import java.io.IOException;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
+
 import de.beckhoff.jni.tcads.AmsAddr;
 import packageAds.PlcConnector;
 import packageAds.PlcEventDrivenFetcher;
@@ -33,11 +43,31 @@ public class MainLauncher implements HmiPlug,Runnable{
 	static PlcConnector plcConnector; 
 	static PlcEventDrivenFetcher plcFetcher;
 	private HmiSignaller hmiSignaller;
+	private static String mqttBrokerAddress, adsServerAddress;
 	
 	boolean shutDown;
 	public MainLauncher()
 	{	
+		File file = new File("PlcMqttClientCfg.xml");
+		DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory
+		        .newInstance();
+		DocumentBuilder documentBuilder = null;
+		try {
+			documentBuilder = documentBuilderFactory.newDocumentBuilder();
+		} catch (ParserConfigurationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		Document document = null;
+		try {
+			document = documentBuilder.parse(file);
+		} catch (SAXException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
+		mqttBrokerAddress = document.getElementsByTagName("mqttBroker").item(0).getTextContent();
+		adsServerAddress = document.getElementsByTagName("adsServer").item(0).getTextContent();
 	}
 	
 	public static String randomAlphaNumeric(int count) {
@@ -101,10 +131,10 @@ public class MainLauncher implements HmiPlug,Runnable{
 		
 		String generatedString = randomAlphaNumeric(8);
 		System.out.println("[MainLauncher.main] Randomly generated client id: " + generatedString);
-		adsMqttClient = new AdsMqttClient("tcp://192.168.2.107:1883", generatedString);
+		adsMqttClient = new AdsMqttClient(mqttBrokerAddress, generatedString);
 		
 		AmsAddr addr = new AmsAddr();
-		plcConnector = new PlcConnector(addr);
+		plcConnector = new PlcConnector(addr,adsServerAddress);
 		plcFetcher = new PlcEventDrivenFetcher(addr,adsMqttClient);
 		
 				

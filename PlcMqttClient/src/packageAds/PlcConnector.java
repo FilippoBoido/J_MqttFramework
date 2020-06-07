@@ -1,5 +1,6 @@
 package packageAds;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Timer;
 
@@ -51,15 +52,16 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
     
 	private static final String plcConnected = "ADS.fbAdsConnector.cbConnected.bValue";
 	private static final String lifePackage = "ADS.fbAdsConnector.fbAdsSupplier.stMqttLifePackage.sDateTime";
-	
+	private static String adsServerAddress;
 	private int plcConnectedIntHdl = 0;
 	private boolean connectionLost;
 	
 	Timer timer;
 	
-	public PlcConnector(AmsAddr addr)
+	public PlcConnector(AmsAddr addr, String adsServerAddress)
 	{
 		super();
+		this.adsServerAddress = adsServerAddress;
 		this.addr = addr;	
 		
 	}
@@ -103,7 +105,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 			AdsCallDllFunction.adsPortOpen();
 			
 			err = AdsCallDllFunction.getLocalAddress(addr);
-			//addr.setNetIdString("192.168.2.113.1.1");
+			addr.setNetIdString(adsServerAddress);
 			addr.setPort(851);
 			
 			if(err != 0)
@@ -384,7 +386,9 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 
 	@Override
 	public void signalConnectionLoss(long errorId) {
-		System.out.println("[PlcConnector.signalConnectionLoss] Connection to plc lost with error id: "+ errorId); 
+		SimpleDateFormat formatter= new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z");
+		Date date = new Date(System.currentTimeMillis());
+		System.out.println("[PlcConnector.signalConnectionLoss] Connection to plc lost at time: "+formatter.format(date) +" with error id: "+ errorId); 
 		connectionLost = true;		
 	}
 
