@@ -30,6 +30,8 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
     		subscribedNotification,
     		publishingNotification,
     		publishedNotification,
+    		publishingMessageNotification,
+    		publishedMessageNotification,
     		subscriptionCounterNotification,
     		publicationCounterNotification;
     
@@ -38,6 +40,8 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
     	adsSubscribedHandle,
     	adsPublishingHandle,
     	adsPublishedHandle,
+    	adsPublishingMessageHandle,
+    	adsPublishedMessageHandle,
     	adsSubscriptionCounterHandle,
     	adsPublicationCounterHandle;
     
@@ -45,13 +49,17 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 			adsSubscribed,
 			adsPublishing,
 			adsPublished,
+			adsPublishingMessage,
+			adsPublishedMessage,
     		subscribingNotificationSignal,
-    		publishingNotificationSignal;
+    		publishingNotificationSignal,
+    		publishingMessageNotificationSignal;
     		
     
 	int adsSubscriptionCounter,
 		adsPublicationCounter,
 		adsPublishingStep,
+		adsPublishingMessageStep,
 		adsSubscribingStep;
 	
 	
@@ -61,7 +69,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 	}
 
 	@Override
-	protected void init() {
+	protected void init() throws AdsConnectionException {
 		
 		super.init();
 			
@@ -86,13 +94,17 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 	    	adsPublishedHandle = Convert.ByteArrToInt(handle_published.getByteArray());
 	    	adsSubscriptionCounterHandle = Convert.ByteArrToInt(handle_subscriptionCounter.getByteArray());
 	    	adsPublicationCounterHandle = Convert.ByteArrToInt(handle_publicationCounter.getByteArray());
-			
+			adsPublishingMessageHandle = Convert.ByteArrToInt(handle_publishingMessage.getByteArray());
+			adsPublishedMessageHandle = Convert.ByteArrToInt(handle_publishedMessage.getByteArray());
+	    		    	
 	    	subscribingNotification = new JNILong(adsSubscribingHandle);
 			subscribedNotification = new JNILong(adsSubscribedHandle);
 			publishingNotification = new JNILong(adsPublishingHandle);
 			publishedNotification = new JNILong(adsPublishedHandle);
 			subscriptionCounterNotification = new JNILong(adsSubscriptionCounterHandle);
 			publicationCounterNotification = new JNILong(adsPublicationCounterHandle);	
+			publishingMessageNotification = new JNILong(adsPublishingMessageHandle);
+			publishedMessageNotification = new JNILong(adsPublishedMessageHandle);
 			
 		    callObject.addListenerCallbackAdsState(this);
 			
@@ -112,21 +124,7 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 			    
 			}
 			
-			/*
-			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-			        addr,
-			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-			        adsSubscribedHandle,        	// IndexOffset
-			        attr,       		// The defined AdsNotificationAttrib object
-			        adsSubscribedHandle,         	// Choose arbitrary number
-			        subscribedNotification);
-			
-			if(err!=0) { 
-			   
-			    exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
-			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
-			}
-			*/
+		
 			// Create notificationHandle
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
@@ -142,14 +140,29 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
 			}
 			
-			/*
+			// Create notificationHandle
 			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
 			        addr,
 			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-			        adsPublishedHandle,        	// IndexOffset
+			        adsPublishingMessageHandle,        	// IndexOffset
 			        attr,       		// The defined AdsNotificationAttrib object
-			        adsPublishedHandle,         	// Choose arbitrary number
-			        publishedNotification);
+			        adsPublishingMessageHandle,         	// Choose arbitrary number
+			        publishingMessageNotification);
+			
+			if(err!=0) { 
+				
+				exceptionMessage = "Error adding device notification: 0x" + Long.toHexString(err);
+			    throw new AdsConnectionException(exceptionMessage,new AdsConnectionException());
+			}
+			/*
+			// Create notificationHandle
+			err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
+			        addr,
+			        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
+			        adsPublishedMessageHandle,        	// IndexOffset
+			        attr,       		// The defined AdsNotificationAttrib object
+			        adsPublishedMessageHandle,         	// Choose arbitrary number
+			        publishedMessageNotification);
 			
 			if(err!=0) { 
 				
@@ -166,38 +179,6 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 				
 		}
 		
-		/*
-		//change size to 2 bytes for the subscription and publication counter
-		attr.setCbLength(2);
-	
-		// Create notificationHandle
-		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		        addr,
-		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		        adsSubscriptionCounterHandle,        	// IndexOffset
-		        attr,       		// The defined AdsNotificationAttrib object
-		        adsSubscriptionCounterHandle,         	// Choose arbitrary number
-		        subscriptionCounterNotification);
-		
-		if(err!=0) { 
-		    System.out.println("Error: Add notification: 0x" 
-		            + Long.toHexString(err)); 
-		}
-		
-		// Create notificationHandle
-		err = AdsCallDllFunction.adsSyncAddDeviceNotificationReq(
-		        addr,
-		        AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,     // IndexGroup
-		        adsPublicationCounterHandle,        	// IndexOffset
-		        attr,       		// The defined AdsNotificationAttrib object
-		        adsPublicationCounterHandle,         	// Choose arbitrary number
-		        publicationCounterNotification);
-		
-		if(err!=0) { 
-		    System.out.println("Error: Add notification: 0x" 
-		            + Long.toHexString(err)); 
-		}
-		*/
 	}
 
 	@Override
@@ -208,6 +189,10 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 	
 	@Override
 	protected void busy() throws AdsConnectionException , UnsupportedEncodingException{	
+		
+		/*******************************************************************************************************************************************************************/
+		/* Subscribing routine */
+		/*******************************************************************************************************************************************************************/
 		
 		switch(adsSubscribingStep)
 		{
@@ -264,7 +249,9 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 			
 		}
 		
-		
+		/*******************************************************************************************************************************************************************/
+		/* Publishing Payload routine */
+		/*******************************************************************************************************************************************************************/
 		
 		switch(adsPublishingStep)
 		{
@@ -322,6 +309,58 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 			break;
 				
 		}
+		
+		/*******************************************************************************************************************************************************************/
+		/* Publishing Message routine */
+		/*******************************************************************************************************************************************************************/
+		
+		switch(adsPublishingMessageStep)
+		{
+		
+		case 00:
+			
+			if(publishingMessageNotificationSignal == true)
+			{
+				publishingMessageNotificationSignal = false;
+				adsPublishingMessageStep = 10;
+			}
+			
+			break;
+			
+		case 10:
+			
+			hdlMessageCounter = fetchSymbolHdl(handle_messageCounter,symbol_messageCounter);
+			//System.out.println("[PlcEventDrivenFetcher.Busy] hdlPublications: "+hdlPublications + " sizeOfPublications: " +sizeOfPublications+" length of buffer: "+ buffer_publications.getByteArray().length);
+			fetchSymbolToBuffer(new String(symbol_messageCounter.getByteArray()),hdlMessageCounter,2, buffer_messageCounter);
+			int counter = Convert.ByteArrToShort(buffer_messageCounter.getByteArray());
+			fetchSymbolToBuffer(new String(symbol_messages[(counter-1)] .getByteArray()),hdlMessages[(counter-1)], SIZE_OF_PLC_STRING, buffer_messages[(counter-1)]);
+			/*
+			if(adsMqttClient.publish(Convert.ByteArrToString(topicByteArr),payloadByteArr))
+			{
+				
+				writeSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
+			}
+			*/
+			adsPublishingMessageStep = 20;
+			
+			break;
+			
+		case 20:
+			
+			/*
+			fetchSymbolToBuffer(new String(symbol_published.getByteArray()),hdlPublished,1,buffer_published);
+			
+			if(Convert.ByteArrToBool(buffer_published.getByteArray()))
+				adsPublishingMessageStep = 00;
+			
+			*/
+			break;
+				
+		}
+		
+		/*******************************************************************************************************************************************************************/
+		/* Check for new mqtt messages
+		/*******************************************************************************************************************************************************************/
 		
 		if(!adsMqttClient.getAdsMessageList().isEmpty())
 		{
@@ -482,21 +521,25 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 			adsPublished = Convert.ByteArrToBool(notification.getData());
 			System.out.println("[PlcEventDrivenFetcher.onEvent] adsPublishedHandle Value: " + adsPublished);
 		}
+		else if(lUser.intValue() == adsPublishingMessageHandle)
+		{
+			
+			adsPublishingMessage = Convert.ByteArrToBool(notification.getData());
+			
+			if(adsPublishingMessage)
+				publishingMessageNotificationSignal = true;
+			
+			System.out.println("[PlcEventDrivenFetcher.onEvent] adsPublishingMessageHandle Value: " + adsPublishing);
+			
+				
+		}
+		else if(lUser.intValue() == adsPublishedMessageHandle)
+		{
+			adsPublishedMessage = Convert.ByteArrToBool(notification.getData());
+			System.out.println("[PlcEventDrivenFetcher.onEvent] adsPublishedMessageHandle Value: " + adsPublished);
+		}
 			
 	}
-		/*
-		else if(lUser.intValue() == adsSubscriptionCounterHandle)
-		{
-			adsSubscriptionCounter = Convert.ByteArrToShort(notification.getData());
-			System.out.println("adsSubscriptionCounterHandle Value:\t\t"+ adsSubscriptionCounter);
-		}
-		else if(lUser.intValue() == adsPublicationCounterHandle)
-		{
-			adsPublicationCounter = Convert.ByteArrToShort(notification.getData());
-			System.out.println("adsPublicationCounterHandle Value:\t\t"+ adsPublicationCounter);
-		}
-		*/
-	
 
 }
 
