@@ -38,7 +38,8 @@ public class PlcFetcher extends StateMachine {
 	protected static final String mqttPublishedMessage = "ADS.fbMqttClient.bPublishedMessage";
 	protected static final String mqttMaxMessages =  "ADS.fbMqttClient.cMaxMessages";
 	
-	public static final int SIZE_OF_PLC_STRING = 256;
+	public static final int SIZE_OF_PLC_MAX_STRING = 256;
+	public static final int SIZE_OF_PLC_STRING = 82;
 	
 //uiSubscriptionCounter uiPublicationCounter uiSizeOfSubscriptions uiSizeOfPublications
 	
@@ -75,7 +76,7 @@ public class PlcFetcher extends StateMachine {
 							handle_maxMessages,
 							symbol_maxMessages;
 	
-	protected JNIByteBuffer[] handles_messages,symbol_messages,buffer_messages;
+	protected JNIByteBuffer[] handles_messages,handles_topics,symbol_messages,symbol_topics,buffer_messages,buffer_topics;
 	
 	//The buffers for the packages that need to be fetched, here.
 	
@@ -130,7 +131,7 @@ public class PlcFetcher extends StateMachine {
 					hdlPublishedMessage,
 					hdlMaxMessages;
 	
-	protected int[] hdlMessages;
+	protected int[] hdlMessages,hdlTopics;
 	
 	byte[] topicByteArr = new byte[9];
 	byte[] payloadByteArr = new byte[34];
@@ -179,29 +180,8 @@ public class PlcFetcher extends StateMachine {
 		symbol_publishedMessage = new JNIByteBuffer(mqttPublishedMessage.getBytes());
 		symbol_maxMessages = new JNIByteBuffer(mqttMaxMessages.getBytes());
 		
-		hdlMaxMessages = fetchSymbolHdl(handle_maxMessages,symbol_maxMessages);
-		buffer_maxMessages = new JNIByteBuffer(2);
-		fetchSymbolToBuffer(new String(symbol_maxMessages.getByteArray()),hdlMaxMessages, 2, buffer_maxMessages);
-		maxMessages = Convert.ByteArrToShort(buffer_maxMessages.getByteArray());
-		
-		handles_messages = new JNIByteBuffer[maxMessages];
-		symbol_messages = new JNIByteBuffer[maxMessages];
-		buffer_messages = new JNIByteBuffer[maxMessages];
-		hdlMessages = new int[maxMessages];
-		
-		for(int i = 0 ; i<maxMessages ; i++)
-		{
-			buffer_messages[i] = new JNIByteBuffer(SIZE_OF_PLC_STRING);
-			handles_messages[i] = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
-			String tmpPath = mqttMessage.replaceAll("*", Integer.toString(i+1));
-			symbol_messages[i] = new JNIByteBuffer(tmpPath.getBytes());
-			hdlMessages[i] = fetchSymbolHdl(handles_messages[i],symbol_messages[i]);
-		}
+		buffer_messageCounter = new JNIByteBuffer(2);
 				
-		//hdlMessageStorage = fetchSymbolHdl(handle_message,symbol_message);
-		//buffer_message = new JNIByteBuffer(SIZE_OF_PLC_STRING);
-		//symbol_message = new JNIByteBuffer(mqttMessage.getBytes());
-		
 	}
 
 	synchronized void fetchSymbolToBuffer(String symbolName,int hdl,int size, JNIByteBuffer buffer) throws AdsConnectionException
@@ -275,7 +255,37 @@ public class PlcFetcher extends StateMachine {
 	@Override
 	protected void ready() throws AdsConnectionException {
 		
+		hdlMaxMessages = fetchSymbolHdl(handle_maxMessages,symbol_maxMessages);
+		buffer_maxMessages = new JNIByteBuffer(2);
+		fetchSymbolToBuffer(new String(symbol_maxMessages.getByteArray()),hdlMaxMessages, 2, buffer_maxMessages);
+		maxMessages = Convert.ByteArrToShort(buffer_maxMessages.getByteArray());
 		
+		handles_messages = new JNIByteBuffer[maxMessages];
+		handles_topics  = new JNIByteBuffer[maxMessages];
+		symbol_messages = new JNIByteBuffer[maxMessages];
+		symbol_topics = new JNIByteBuffer[maxMessages];
+		buffer_messages = new JNIByteBuffer[maxMessages];
+		buffer_topics = new JNIByteBuffer[maxMessages];
+		
+		hdlMessages = new int[maxMessages];
+		hdlTopics = new int[maxMessages];
+		
+		for(int i = 0 ; i<maxMessages ; i++)
+		{
+			buffer_messages[i] = new JNIByteBuffer(SIZE_OF_PLC_MAX_STRING);
+			buffer_topics[i] = new JNIByteBuffer(SIZE_OF_PLC_STRING);
+			
+			handles_messages[i] = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
+			String tmpPath = mqttMessage.replaceFirst("\\*", Integer.toString(i+1));
+			symbol_messages[i] = new JNIByteBuffer(tmpPath.getBytes());
+			
+			handles_topics[i] = new JNIByteBuffer(Integer.SIZE / Byte.SIZE);
+			tmpPath = mqttMessageTopic.replaceFirst("\\*", Integer.toString(i+1));
+			symbol_topics[i] = new JNIByteBuffer(tmpPath.getBytes());
+			
+			hdlMessages[i] = fetchSymbolHdl(handles_messages[i],symbol_messages[i]);
+			hdlTopics[i] = fetchSymbolHdl(handles_topics[i],symbol_topics[i]);
+		}
 		
 		//fetchSymbolToBuffer(new String(symbol_message.getByteArray()), hdlMessageStorage, SIZE_OF_PLC_STRING, buffer_message);
 		

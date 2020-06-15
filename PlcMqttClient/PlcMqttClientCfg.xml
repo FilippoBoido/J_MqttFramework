@@ -1,4 +1,4 @@
 <addresses>
-	<mqttBroker>tcp://192.168.2.123:1883</mqttBroker>
+	<mqttBroker>tcp://192.168.2.107:1883</mqttBroker>
 	<adsServer>192.168.56.1.1.1</adsServer>
 </addresses>

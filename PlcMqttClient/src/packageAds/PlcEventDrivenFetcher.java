@@ -333,27 +333,27 @@ public class PlcEventDrivenFetcher extends PlcFetcher implements CallbackListene
 			//System.out.println("[PlcEventDrivenFetcher.Busy] hdlPublications: "+hdlPublications + " sizeOfPublications: " +sizeOfPublications+" length of buffer: "+ buffer_publications.getByteArray().length);
 			fetchSymbolToBuffer(new String(symbol_messageCounter.getByteArray()),hdlMessageCounter,2, buffer_messageCounter);
 			int counter = Convert.ByteArrToShort(buffer_messageCounter.getByteArray());
-			fetchSymbolToBuffer(new String(symbol_messages[(counter-1)] .getByteArray()),hdlMessages[(counter-1)], SIZE_OF_PLC_STRING, buffer_messages[(counter-1)]);
-			/*
-			if(adsMqttClient.publish(Convert.ByteArrToString(topicByteArr),payloadByteArr))
-			{
-				
-				writeSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublished, 1);	
+			fetchSymbolToBuffer(new String(symbol_messages[(counter-1)] .getByteArray()),hdlMessages[(counter-1)], SIZE_OF_PLC_MAX_STRING, buffer_messages[(counter-1)]);
+			fetchSymbolToBuffer(new String(symbol_topics[(counter-1)] .getByteArray()),hdlTopics[(counter-1)], SIZE_OF_PLC_STRING, buffer_topics[(counter-1)]);
+			
+			if(adsMqttClient.publish(Convert.ByteArrToString(buffer_topics[(counter-1)].getByteArray()),Convert.ByteArrToString(buffer_messages[(counter-1)].getByteArray())))
+			{		
+				writeSymbolFromBuffer(new JNIByteBuffer(Convert.BoolToByteArr(true)), hdlPublishedMessage, 1);	
 			}
-			*/
+			
 			adsPublishingMessageStep = 20;
 			
 			break;
 			
 		case 20:
 			
-			/*
-			fetchSymbolToBuffer(new String(symbol_published.getByteArray()),hdlPublished,1,buffer_published);
 			
-			if(Convert.ByteArrToBool(buffer_published.getByteArray()))
+			fetchSymbolToBuffer(new String(symbol_publishedMessage.getByteArray()),hdlPublishedMessage,1,buffer_publishedMessage);
+			
+			if(Convert.ByteArrToBool(buffer_publishedMessage.getByteArray()))
 				adsPublishingMessageStep = 00;
 			
-			*/
+			
 			break;
 				
 		}
