@@ -25,7 +25,7 @@ public class PlcConnector extends StateMachine implements CallbackListenerAdsSta
 	long err;
 	int hdlLifePkgBuffToInt;
 	
-	AmsAddr addr;
+	static AmsAddr addr;
 	JNIByteBuffer 	plcConnectedHdlBuf,
 					plcConnectedSymBuf,
 					plcConnectedDataBuf,
