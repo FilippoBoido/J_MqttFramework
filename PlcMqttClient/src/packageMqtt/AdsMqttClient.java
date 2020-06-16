@@ -89,7 +89,7 @@ public class AdsMqttClient extends StateMachine implements MqttCallback{
 		{
 			try 
 			{
-				System.out.println("Publishing message: "+message);
+				System.out.println("Publishing message: "+message+ " with topic: " + topic);
 	            MqttMessage mqttMessage = new MqttMessage(message.getBytes());
 	            mqttMessage.setQos(qos);
 	            mqttClient.publish(topic, mqttMessage);

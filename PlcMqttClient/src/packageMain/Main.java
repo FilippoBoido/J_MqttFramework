@@ -16,10 +16,10 @@ public class Main  {
 		
 		mainLauncher.setHmiSignaler(hmiInterface);
 		
-		mainLauncherThread.start();
+		
 		hmiInterfaceThread.start();
 		
-	
+		mainLauncherThread.start();
 		
 		try {
 			mainLauncherThread.join();

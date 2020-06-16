@@ -24,7 +24,7 @@ public class CheckConnectionTask extends java.util.TimerTask {
 	public void run() {
 		
 		
-		System.out.println("[CheckConnectionTask] Checking connection");
+		//System.out.println("[CheckConnectionTask] Checking connection");
 		err = AdsCallDllFunction.adsSyncReadReq(
 				addr,
                 AdsCallDllFunction.ADSIGRP_SYM_VALBYHND,
@@ -33,7 +33,8 @@ public class CheckConnectionTask extends java.util.TimerTask {
                 plcConnectedDataBuf);
 		
 		if(err!=0)
-		{								
+		{			
+			System.out.println("[CheckConnectionTask] Failed to adsSyncReadReq.");
 			checkConnectionPlug.signalConnectionLoss(err);
 			
 		}

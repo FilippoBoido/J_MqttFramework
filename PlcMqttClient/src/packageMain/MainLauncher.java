@@ -44,6 +44,7 @@ public class MainLauncher implements HmiPlug,Runnable{
 	static PlcEventDrivenFetcher plcFetcher;
 	private HmiSignaller hmiSignaller;
 	private static String mqttBrokerAddress, adsServerAddress;
+	private static AmsAddr addr;
 	
 	boolean shutDown;
 	public MainLauncher()
@@ -133,21 +134,21 @@ public class MainLauncher implements HmiPlug,Runnable{
 		System.out.println("[MainLauncher.main] Randomly generated client id: " + generatedString);
 		adsMqttClient = new AdsMqttClient(mqttBrokerAddress, generatedString);
 		
-		AmsAddr addr = new AmsAddr();
+		addr = new AmsAddr();
 		plcConnector = new PlcConnector(addr,adsServerAddress);
 		plcFetcher = new PlcEventDrivenFetcher(addr,adsMqttClient);
 		
 				
 		while(!shutDown)
 		{
-			
+			/*
 			try {
 				Thread.sleep(200);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
+			*/
 			try {
 				
 				plcConnector.checkStateMachine();

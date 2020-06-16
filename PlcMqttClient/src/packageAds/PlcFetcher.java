@@ -43,93 +43,93 @@ public class PlcFetcher extends StateMachine {
 	
 //uiSubscriptionCounter uiPublicationCounter uiSizeOfSubscriptions uiSizeOfPublications
 	
-	protected JNIByteBuffer handle_subscriptions,
-							symbol_subscriptions,
-							handle_publications,
-							symbol_publications,
-							handle_message,
-							symbol_message,
-							handle_subscriptionCounter,
-							symbol_subscriptionCounter,
-							handle_publicationCounter,
-							symbol_publicationCounter,
-							handle_messageCounter,
-							symbol_messageCounter,
-							handle_sizeOfSubscriptions,
-							symbol_sizeOfSubscriptions,
-							handle_sizeOfPublications,
-							symbol_sizeOfPublications,
-							handle_publishing,
-							symbol_publishing,
-							handle_published,
-							symbol_published,
-							handle_subscribed,
-							symbol_subscribed,
-							handle_subscribing,
-							symbol_subscribing,
-							handle_sizeOfAdsShell,
-							symbol_sizeOfAdsShell,
-							handle_publishingMessage,
-							symbol_publishingMessage,
-							handle_publishedMessage,
-							symbol_publishedMessage,
-							handle_maxMessages,
-							symbol_maxMessages;
+	protected static JNIByteBuffer 	handle_subscriptions,
+									symbol_subscriptions,
+									handle_publications,
+									symbol_publications,
+									handle_message,
+									symbol_message,
+									handle_subscriptionCounter,
+									symbol_subscriptionCounter,
+									handle_publicationCounter,
+									symbol_publicationCounter,
+									handle_messageCounter,
+									symbol_messageCounter,
+									handle_sizeOfSubscriptions,
+									symbol_sizeOfSubscriptions,
+									handle_sizeOfPublications,
+									symbol_sizeOfPublications,
+									handle_publishing,
+									symbol_publishing,
+									handle_published,
+									symbol_published,
+									handle_subscribed,
+									symbol_subscribed,
+									handle_subscribing,
+									symbol_subscribing,
+									handle_sizeOfAdsShell,
+									symbol_sizeOfAdsShell,
+									handle_publishingMessage,
+									symbol_publishingMessage,
+									handle_publishedMessage,
+									symbol_publishedMessage,
+									handle_maxMessages,
+									symbol_maxMessages;
 	
-	protected JNIByteBuffer[] handles_messages,handles_topics,symbol_messages,symbol_topics,buffer_messages,buffer_topics;
+	protected static JNIByteBuffer[] handles_messages,handles_topics,symbol_messages,symbol_topics,buffer_messages,buffer_topics;
 	
 	//The buffers for the packages that need to be fetched, here.
 	
 
-	protected JNIByteBuffer buffer_sizeOfSubscriptions = new JNIByteBuffer(2);
-	protected JNIByteBuffer buffer_sizeOfPublications = new JNIByteBuffer(2);
-	protected JNIByteBuffer buffer_sizeOfAdsShell = new JNIByteBuffer(2);
+	protected static JNIByteBuffer buffer_sizeOfSubscriptions = new JNIByteBuffer(2);
+	protected static JNIByteBuffer buffer_sizeOfPublications = new JNIByteBuffer(2);
+	protected static JNIByteBuffer buffer_sizeOfAdsShell = new JNIByteBuffer(2);
 	
-	protected JNIByteBuffer buffer_subscriptions,
-							buffer_publications,
-							buffer_message,
-							buffer_publicationCounter,
-							buffer_subscriptionCounter,
-							buffer_messageCounter,
-							buffer_publishing,
-							buffer_published,
-							buffer_subscribing,
-							buffer_subscribed,
-							buffer_publishingMessage,
-							buffer_publishedMessage,
-							buffer_maxMessages;
+	protected static JNIByteBuffer 	buffer_subscriptions,
+									buffer_publications,
+									buffer_message,
+									buffer_publicationCounter,
+									buffer_subscriptionCounter,
+									buffer_messageCounter,
+									buffer_publishing,
+									buffer_published,
+									buffer_subscribing,
+									buffer_subscribed,
+									buffer_publishingMessage,
+									buffer_publishedMessage,
+									buffer_maxMessages;
 	
-	protected short currentSubCounter,
-					currentPubCounter,
-					currentMesCounter,
-					sizeOfSubscriptions,
-					sizeOfPublications,
-					sizeOfAdsShell,
-	 				maxMessages;
+	protected static short 	currentSubCounter,
+							currentPubCounter,
+							currentMesCounter,
+							sizeOfSubscriptions,
+							sizeOfPublications,
+							sizeOfAdsShell,
+			 				maxMessages;
 	
 	protected AdsMqttClient adsMqttClient;
 	
-	AmsAddr addr;
+	protected static AmsAddr addr;
 	
 	long err;
 	int shell = 0;	
 	
-	protected int 	hdlSubscriptions,
-					hdlPublications,
-					hdlPublicationCounter,
-					hdlSubscriptionCounter,
-					hdlMessageCounter,
-					hdlMessageStorage,
-					hdlSizeOfSubscriptions,
-					hdlSizeOfPublications,
-					hdlSubscribing,
-					hdlSubscribed,
-					hdlPublishing,
-					hdlPublished,
-					hdlSizeOfAdsShell,
-					hdlPublishingMessage,
-					hdlPublishedMessage,
-					hdlMaxMessages;
+	protected static int 	hdlSubscriptions,
+							hdlPublications,
+							hdlPublicationCounter,
+							hdlSubscriptionCounter,
+							hdlMessageCounter,
+							hdlMessageStorage,
+							hdlSizeOfSubscriptions,
+							hdlSizeOfPublications,
+							hdlSubscribing,
+							hdlSubscribed,
+							hdlPublishing,
+							hdlPublished,
+							hdlSizeOfAdsShell,
+							hdlPublishingMessage,
+							hdlPublishedMessage,
+							hdlMaxMessages;
 	
 	protected int[] hdlMessages,hdlTopics;
 	
@@ -186,6 +186,13 @@ public class PlcFetcher extends StateMachine {
 
 	synchronized void fetchSymbolToBuffer(String symbolName,int hdl,int size, JNIByteBuffer buffer) throws AdsConnectionException
 	{
+		if(buffer!=null)
+			System.out.println(
+					"[PlcFetcher.fetchSymbolToBuffer] Fetching symbol: " + symbolName 
+					+ " | Buffer.length: " +buffer.getByteArray().length 
+					+ " | Requested size: "+ size 
+					+ " | Handle: " + hdl);
+		
 		long err = AdsCallDllFunction
 				   .adsSyncReadReq
 				   (
